@@ -5,8 +5,11 @@
 
 // thread process setting
 #define STACK_SIZE 4096
-#define USER_PROGRAM_BASE 0x30000000
+#define USER_STACK_BASE ((uint64_t)0x1000000000000 - STACK_SIZE)
+#define USER_PROGRAM_BASE 0x80000
 #define USER_PROGRAM_SIZE (1 * mb)
+
+#define MAX_PAGE_FRAME_PER_THREAD 1000
 
 // thread status number
 #define THREAD_DEAD 1
@@ -52,6 +55,11 @@ typedef struct thread_info {
   uint64_t user_stack_base;
   uint64_t user_program_base;
   uint32_t user_program_size;
+
+  uint64_t *pgd;
+  uint32_t page_frame_ids[MAX_PAGE_FRAME_PER_THREAD];
+  uint32_t page_frame_count;
+  
   struct thread_info *next;
 } thread_info;
 
@@ -112,3 +120,9 @@ void thread_timer_test();
 // exec
 void exec(); // calls syscall.img
 void exec_my_user_shell(); // calls user_shell
+
+
+//virtual memory
+uint64_t thread_allocate_page(thread_info *thread, uint64_t size);
+void thread_free_page(thread_info *thread);
+void switch_pgd(uint64_t next_pgd);

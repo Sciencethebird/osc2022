@@ -1,6 +1,6 @@
 #pragma once
 #include "utils.h"
-#include "mmu.h"
+#include "mmu_values.h"
 #define CORE0_TIMER_IRQ_CTRL ((volatile unsigned int *)(KVA + 0x40000040))
 #define MAX_EVENT_MSG_LEN 20
 

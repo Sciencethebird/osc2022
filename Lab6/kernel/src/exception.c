@@ -43,7 +43,7 @@ void lower_64_EL_sync_handler(uint64_t sp){
     trap_frame_t *trap_frame = (trap_frame_t *)sp;
     int sys_call_num;
     asm volatile("mov %0, x8" : "=r"(sys_call_num));
-
+    //printf("sys_call_num = %d\n", sys_call_num);
     if(sys_call_num == 0){ // int getpid()
       //uint32_t pid = get_current()->pid;
       uint64_t pid = get_current()->pid;

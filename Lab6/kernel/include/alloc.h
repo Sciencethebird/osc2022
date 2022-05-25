@@ -1,10 +1,11 @@
 #pragma once
 #include "utils.h"
-#include "mmu.h"
+#include "mmu_values.h"
+
 //#include "stdint.h"
 
 // for simple_malloc
-#define HEAP_START 0x30000000
+#define HEAP_START KVA +0x30000000
 size_t heap_offset;
 
 #define PAGE_BASE_ADDR ((uint64_t)(KVA + 0x10000000))

@@ -2,8 +2,8 @@
 #pragma once
 //#include "stdint.h"
 #include "utils.h"
-#include "mmu.h"
-#define CPIO_LOC 0x8000000
+#include "mmu_values.h"
+//#define CPIO_LOC 0x8000000
 #define RAMFS_ADDR (KVA + 0x8000000)
 #define CPIO_MAGIC "070701"
 #define CPIO_END "TRAILER!!!"

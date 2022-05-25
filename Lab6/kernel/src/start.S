@@ -1,4 +1,4 @@
-#include "mmu.h"
+#include "mmu_values.h"
 
 .section ".text.boot"
 
@@ -21,54 +21,71 @@ master:
     bl set_exception_vector_table
 
 set_virtual_memory:
-    // set virtual address configuration
-    ldr x0, =TCR_CONFIG_DEFAULT // set virtual address 48 bit for address offset, 4KB granulaty
+    ldr x0, =TCR_CONFIG_DEFAULT
     msr tcr_el1, x0
-    // memory policy setting
+
     ldr x0, =( \
         (MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE_nGnRnE * 8)) | \
         (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL_NOCACHE * 8)) \
     )
     msr mair_el1, x0
 
-    mov x0, 0 // PGD's page frame at 0x0
-    mov x1, 0x1000 // PUD's page frame at 0x1000
+    ldr x0, =PGD_BASE // PGD's page frame at 0x0
+    ldr x1, =PUD_BASE // PGD's page frame at 0x0
+    ldr x2, =PMD_BASE // PGD's page frame at 0x0
+    ldr x3, =PTE_BASE // PGD's page frame at 0x0
 
-    // The first entry of PGD which points to PUD
-    ldr x2, =BOOT_PGD_ATTR
-    orr x2, x1, x2 // combine the physical address of next level page with attribute.
-    str x2, [x0]
+    ldr x4, =BOOT_PGD_ATTR
+    mov x5, x1
+    orr x6, x5, x4 // combine the physical address of next level page with attribute.
+    str x6, [x0]
 
-    // The first one maps 0x00000000 - 0x3fffffff (RAM and GPU peripherals)
-    // The second one maps 0x40000000 - 0x7fffffff(ARM local peripherals)
-    ldr x2, =BOOT_PUD_ATTR
-    mov x3, 0x00000000
-    orr x3, x2, x3
-    str x3, [x1] // 1st 1GB mapped by the 1st entry of PUD
-    mov x3, 0x40000000
-    orr x3, x2, x3
-    str x3, [x1, 8] // 2nd 1GB mapped by the 2nd entry of PUD
+    ldr x4, =BOOT_PUD_ATTR
+    mov x5, x2
+    orr x6, x5, x4
+    str x6, [x1] // 1st 1GB mapped by the 1st entry of PUD
+    add x5, x5, #0x1000
+    orr x6, x5, x4
+    str x6, [x1, 8] // 2nd 1GB mapped by the 2nd entry of PUD
 
-    //mov x0, 0x1001 works
-    //mov x0, 0x2000 does not work
-    
+    ldr x4, =BOOT_PMD_ATTR
+    mov x5, x3
+    mov x7, x2
+    mov x9, #(512 * 2)
+set_PMD:
+    orr x6, x5, x4
+    str x6, [x7] // 2MB block
+    sub x9, x9, #1
+    add x7, x7, #8
+    add x5, x5, #0x1000
+    cbnz x9, set_PMD
+
+    ldr x4, =BOOT_PTE_NORMAL_NOCACHE_ATTR
+    mov x5, #0x00000000
+    mov x7, x3
+    mov x9, #(512 * 512 * 2)
+    ldr x10, =PERIPHERAL_BASE
+set_PTE:
+    cmp x5, x10
+    blt normal_mem
+    ldr x4, =BOOT_PTE_DEVICE_nGnRnE_ATTR
+normal_mem:
+    orr x6, x5, x4
+    str x6, [x7] // 4KB page
+    sub x9, x9, #1
+    add x7, x7, #8
+    add x5, x5, #(1 << 12)
+    cbnz x9, set_PTE
+
     msr ttbr0_el1, x0 // load PGD to the bottom translation based register.
-    // PGD's page frame at 0x0
     msr ttbr1_el1, x0 // also load PGD to the upper translation based register.
 
     mrs x2, sctlr_el1
     orr x2 , x2, 1
     msr sctlr_el1, x2 // enable MMU, cache remains disabled
 
-    // here 0x80070 (not 0xffff...80070), since The branch destination must be within 4 to 130 bytes 
-    // after the instruction and in the same execution state.
-    // https://developer.arm.com/documentation/dui0489/c/Cjaghefc
-
-    // so ttbr0_el1 (bottom translation) instead of upper translation is used to transform address of "boot_rest"
-    // start to use VA and address transformation
     ldr x2, =boot_rest // indirect branch to the virtual address
     br x2
-    //b boot_rest
 
 boot_rest:
     // clear bss segment
@@ -103,7 +120,8 @@ from_el2_to_el1:
     eret                    // return to EL1
 
 set_exception_vector_table:
-    adr x0, exception_vector_table
+    // adr x0, exception_vector_table
+    ldr x0, =exception_vector_table
     msr vbar_el1, x0
     ret
 

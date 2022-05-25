@@ -39,7 +39,7 @@ commads cmd_list[]=
 int cmd_num = sizeof(cmd_list)/sizeof(commads);
 
 void shell_cpio(char* args){
-    uint64_t cur_addr = CPIO_LOC;
+    uint64_t cur_addr = RAMFS_ADDR;
     cpio_newc_header* cpio_ptr;
     uint64_t name_size, file_size;
     char *file_name;

@@ -2,11 +2,13 @@
 #include "timer.h"
 #include "string.h"
 #include "io.h"
-#include "memory.h"
+#include "alloc.h"
 #include "printf.h"
 #include "utils.h"
 #include "kernel.h"
 #include "mmu.h"
+
+
 void thread_init() {
   run_queue.head = 0;
   run_queue.tail = 0;
@@ -15,18 +17,25 @@ void thread_init() {
 
 thread_info *thread_create(void (*func)()) {
   thread_info *thread = (thread_info *)malloc(sizeof(thread_info));
+
+  uint64_t *pgd;
+  asm volatile("mrs %0, ttbr1_el1" : "=r"(pgd));
+  thread->pgd = pgd;
+  for (int i = 0; i < MAX_PAGE_FRAME_PER_THREAD; i++)
+    thread->page_frame_ids[i] = 0;
+  thread->page_frame_count = 0;
+
   thread->pid = thread_cnt++;
   thread->status = THREAD_READY;
   thread->next = 0;
-  thread->kernel_stack_base = (uint64_t)malloc(STACK_SIZE); // originally 0???
-  thread->user_stack_base = (uint64_t)malloc(STACK_SIZE);
-  thread->user_program_base =
-      USER_PROGRAM_BASE + thread->pid * USER_PROGRAM_SIZE;
-  
+  thread->kernel_stack_base = thread_allocate_page(thread, STACK_SIZE);
+  thread->user_stack_base = 0;
+  thread->user_program_base = 0;
   thread->context.fp = thread->kernel_stack_base + STACK_SIZE;
   thread->context.lr = (uint64_t)func;
   thread->context.sp = thread->kernel_stack_base + STACK_SIZE;
-  thread->user_program_size = USER_PROGRAM_SIZE;
+  //for (int i = 0; i < FD_MAX; ++i) thread->fd_table.files[i] = 0;
+
   run_queue_push(thread);
   return thread;
 }
@@ -45,7 +54,7 @@ void run_queue_push(thread_info *thread) {
 
 void schedule() {
   //print_s("scheduling\r\n");
-
+  // printf("run queue head: %d\n",run_queue.head);
   // no other thread to run
   if (run_queue.head == 0) {
     printf("nothing to run\n");
@@ -75,8 +84,10 @@ void schedule() {
   //plan_next_interrupt_tval(SCHEDULE_TVAL);
   //printf("pid: %d\n", run_queue.head->pid);
   plan_next_interrupt_tval(SCHEDULE_TVAL);
-  enable_interrupt();
   
+  
+  switch_pgd((uint64_t)(run_queue.head->pgd));
+  enable_interrupt();
   switch_to((uint64_t)get_current(), run_queue.head);
 
   //uint64_t sp;
@@ -102,7 +113,10 @@ void exit() {
   // kill all thread in this lab, formally, you have to maitain a child pid list and kill child too.
   for (thread_info *ptr = run_queue.head; ptr->next != 0; ptr = ptr->next) {
       ptr->status = THREAD_DEAD;
+      thread_free_page(ptr);
   }
+
+  //thread_free_page(cur);
   schedule();
 }
 
@@ -162,6 +176,7 @@ void fork(uint64_t sp) {
   schedule();
   trap_frame_t *trap_frame = (trap_frame_t *)(get_current()->trap_frame_addr);
   trap_frame->x[0] = run_queue.head->child_pid;
+  printf("fork return: %d\n", trap_frame->x[0]);
 }
 
 void handle_fork() {
@@ -181,63 +196,65 @@ void handle_fork() {
 }
 
 void create_child(thread_info *parent, thread_info *child) {
-  printf("creating child malloc\n");
-  child->user_stack_base = (uint64_t)malloc(STACK_SIZE);
+  child->user_stack_base = thread_allocate_page(child, STACK_SIZE);
+  child->user_program_base = thread_allocate_page(child, USER_PROGRAM_SIZE);
   child->user_program_size = parent->user_program_size;
   parent->child_pid = child->pid;
   child->child_pid = 0;
 
+  init_page_table(child, &(child->pgd));
+  for (uint64_t size = 0; size < child->user_program_size; size += PAGE_SIZE) {
+    uint64_t virtual_addr = USER_PROGRAM_BASE + size;
+    uint64_t physical_addr = VA2PA(child->user_program_base + size);
+    update_page_table(child, virtual_addr, physical_addr, 0b101);
+  }
+  uint64_t virtual_addr = USER_STACK_BASE;
+  uint64_t physical_addr = VA2PA(child->user_stack_base);
+  update_page_table(child, virtual_addr, physical_addr, 0b110);
+
   char *src, *dst;
   // copy saved context in thread info
-  printf("copying context\n");
   src = (char *)&(parent->context);
   dst = (char *)&(child->context);
   for (uint32_t i = 0; i < sizeof(cpu_context); ++i, ++src, ++dst) {
     *dst = *src;
   }
   // copy kernel stack
-  printf("copying kernel stack\n");
   src = (char *)(parent->kernel_stack_base);
   dst = (char *)(child->kernel_stack_base);
   for (uint32_t i = 0; i < STACK_SIZE; ++i, ++src, ++dst) {
     *dst = *src;
   }
   // copy user stack
-  printf("copying user stack\n");
   src = (char *)(parent->user_stack_base);
   dst = (char *)(child->user_stack_base);
   for (uint32_t i = 0; i < STACK_SIZE; ++i, ++src, ++dst) {
     *dst = *src;
   }
   // copy user program
-  printf("copying user program\n");
   src = (char *)(parent->user_program_base);
   dst = (char *)(child->user_program_base);
   for (uint32_t i = 0; i < parent->user_program_size; ++i, ++src, ++dst) {
-    //printf("copying....\n");
     *dst = *src;
   }
 
   // set correct address for child
   uint64_t kernel_stack_base_dist =
       child->kernel_stack_base - parent->kernel_stack_base;
-  uint64_t user_stack_base_dist =
-      child->user_stack_base - parent->user_stack_base;
-  //printf("kernel_stack_base_dist:%d- %d; %d\n", child->user_stack_base , parent->user_stack_base, kernel_stack_base_dist);
-  uint64_t user_program_base_dist =
-      child->user_program_base - parent->user_program_base;
   child->context.fp += kernel_stack_base_dist;
   child->context.sp += kernel_stack_base_dist;
   child->trap_frame_addr = parent->trap_frame_addr + kernel_stack_base_dist;
 
-  trap_frame_t *trap_frame = (trap_frame_t *)(child->trap_frame_addr);
-  trap_frame->x[29] += user_stack_base_dist;    // fp (x29)
-  trap_frame->sp_el0 += user_stack_base_dist;    // sp_el0
-  // you don't need to load link register since it's running the same program
-  // uses the same program counter to run the same program stored in the memory
-  // you don't need following two line to make this lab work, but it's a bit more formal.
-  trap_frame->x[30] += user_program_base_dist;    // lr (x30)
-  trap_frame->elr_el1 += user_program_base_dist;  // elr_el1
+  // with MMU, we do not need to separate user program and stack address
+  // uint64_t user_stack_base_dist =
+  //     child->user_stack_base - parent->user_stack_base;
+  // uint64_t user_program_base_dist =
+  //     child->user_program_base - parent->user_program_base;
+  // trap_frame_t *trap_frame = (trap_frame_t *)(child->trap_frame_addr);
+  // trap_frame->x[29] += user_stack_base_dist;    // fp (x29)
+  // trap_frame->x[30] += user_program_base_dist;  // lr (x30)
+  // trap_frame->x[32] += user_program_base_dist;  // elr_el1
+  // trap_frame->x[33] += user_stack_base_dist;    // sp_el0
 }
 
 
@@ -315,21 +332,37 @@ void thread_timer_test(){
 
 
 void exec() {
-    //print_s(args);
-   
-    //uint64_t target_addr = 0x30100000; // load your program here
-    //uint64_t target_sp = 0x31000000;
+  thread_info *cur = get_current();
+  if (cur->user_program_base == 0) {
+    cur->user_program_base = thread_allocate_page(cur, USER_PROGRAM_SIZE);
+    cur->user_stack_base = thread_allocate_page(cur, STACK_SIZE);
+    init_page_table(cur, &(cur->pgd));
+    // printf("cur_pgd: 0x%llx\n", (uint64_t)(cur->pgd));
+    // printf("user program base: 0x%llx\n", cur->user_program_base);
+    // printf("user stack base: 0x%llx\n", cur->user_stack_base);
+  }
 
-    thread_info *cur = get_current();
-    //if (cur->user_stack_base == 0) {
-    //  cur->user_stack_base = (uint64_t)malloc(STACK_SIZE);
-    //}
-    uint64_t user_sp = cur->user_stack_base + STACK_SIZE;
-    cur->user_program_size = USER_PROGRAM_SIZE;
-    cpio_load_user_program("syscall.img", cur->user_program_base);
+  cur->user_program_size =
+      cpio_load_user_program("vm.img", cur->user_program_base);
+  for (uint64_t size = 0; size < cur->user_program_size; size += PAGE_SIZE) {
+    uint64_t virtual_addr = USER_PROGRAM_BASE + size;
+    uint64_t physical_addr = VA2PA(cur->user_program_base + size);
+    update_page_table(cur, virtual_addr, physical_addr, 0b101);
+  }
+  uint64_t virtual_addr = USER_STACK_BASE;
+  uint64_t physical_addr = VA2PA(cur->user_stack_base);
+  update_page_table(cur, virtual_addr, physical_addr, 0b110);
+
+  uint64_t next_pgd = (uint64_t)cur->pgd;
+  switch_pgd(next_pgd);
+
+  uint64_t user_sp = USER_STACK_BASE + STACK_SIZE;
+
+
+
 
     uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = cur->user_program_base;
+    uint64_t target_addr = USER_PROGRAM_BASE;
     uint64_t target_sp = user_sp;
     //cpio_load_user_program("user_program.img", target_addr);
     //cpio_load_user_program("syscall.img", target_addr);
@@ -342,6 +375,7 @@ void exec() {
     asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
                           // we set the register manually to perform a "jump" or switchning between kernel and user space.
 }
+
 
 void exec_my_user_shell() {
     //print_s(args);
@@ -356,4 +390,27 @@ void exec_my_user_shell() {
     asm volatile("msr sp_el0, %0" : : "r"(target_sp));
     asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
                           // we set the register manually to perform a "jump" or switchning between kernel and user space.
+}
+
+
+uint64_t thread_allocate_page(thread_info *thread, uint64_t size) {
+  page_frame *page_frame = buddy_allocate(size);
+  thread->page_frame_ids[thread->page_frame_count++] = page_frame->id;
+  return page_frame->addr;
+}
+
+void thread_free_page(thread_info *thread) {
+  for (int i = 0; i < thread->page_frame_count; i++) {
+    buddy_free(&frames[thread->page_frame_ids[i]]);
+  }
+}
+
+void switch_pgd(uint64_t next_pgd) {
+  asm volatile("dsb ish");  // ensure write has completed
+  asm volatile("msr ttbr0_el1, %0"
+               :
+               : "r"(next_pgd));   // switch translation based address.
+  asm volatile("tlbi vmalle1is");  // invalidate all TLB entries
+  asm volatile("dsb ish");         // ensure completion of TLB invalidatation
+  asm volatile("isb");             // clear pipeline
 }

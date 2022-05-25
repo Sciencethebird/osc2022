@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "string.h"
-#include "io.h"
+#include "printf.h"
 #include "cpio.h"
 #include "utils.h"
 #include "mini_uart.h"
@@ -71,7 +71,6 @@ int cpio_load_user_program(char *target_program, uint64_t target_addr) {
 
     ptr += sizeof(cpio_newc_header);
     pathname = (char *)ptr;
-        
     // the end is indicated by a special record with pathname "TRAILER!!!"
     if (strcmp(pathname, CPIO_END) == 0) break;
 
@@ -82,10 +81,10 @@ int cpio_load_user_program(char *target_program, uint64_t target_addr) {
       for (unsigned long long i = 0; i < filesize; i++) {
         target_content[i] = content[i];
       }
-      return 1;
+      return filesize;
     }
     ptr = align_up(ptr + filesize, 4);
   }
-  print_s("No such file\n");
+  printf("No such file\n");
   return 0;
 }
