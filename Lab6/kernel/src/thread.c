@@ -54,7 +54,7 @@ void run_queue_push(thread_info *thread) {
 
 void schedule() {
   //print_s("scheduling\r\n");
-  // printf("run queue head: %d\n",run_queue.head);
+  //printf("run queue head: %d\n",run_queue.head);
   // no other thread to run
   if (run_queue.head == 0) {
     printf("nothing to run\n");
@@ -82,9 +82,8 @@ void schedule() {
   } while (run_queue.head->status != THREAD_READY);
   //enable_interrupt();
   //plan_next_interrupt_tval(SCHEDULE_TVAL);
-  //printf("pid: %d\n", run_queue.head->pid);
+  //printf("current pid: %d\n", run_queue.head->pid);
   plan_next_interrupt_tval(SCHEDULE_TVAL);
-  
   
   switch_pgd((uint64_t)(run_queue.head->pgd));
   enable_interrupt();
@@ -113,7 +112,7 @@ void exit() {
   // kill all thread in this lab, formally, you have to maitain a child pid list and kill child too.
   for (thread_info *ptr = run_queue.head; ptr->next != 0; ptr = ptr->next) {
       ptr->status = THREAD_DEAD;
-      thread_free_page(ptr);
+      //thread_free_page(ptr);
   }
 
   //thread_free_page(cur);
@@ -143,6 +142,8 @@ void kill_zombies() {
       thread_info *tmp = cur->next;
       // printf("find dead thread %d\n", cur->tid);
       printf("find dead thread, pid: %d\n", cur->pid);
+       printf("curr pid: %d\n", get_current()->pid);
+      printf("pgd: %x\n", get_current()->pgd);
       free((void *)cur);
       ptr->next = tmp;
       cur = tmp;
@@ -199,15 +200,22 @@ void create_child(thread_info *parent, thread_info *child) {
   child->user_stack_base = thread_allocate_page(child, STACK_SIZE);
   child->user_program_base = thread_allocate_page(child, USER_PROGRAM_SIZE);
   child->user_program_size = parent->user_program_size;
-  parent->child_pid = child->pid;
+  parent->child_pid = child->pid; 
   child->child_pid = 0;
-
+  
   init_page_table(child, &(child->pgd));
   for (uint64_t size = 0; size < child->user_program_size; size += PAGE_SIZE) {
     uint64_t virtual_addr = USER_PROGRAM_BASE + size;
     uint64_t physical_addr = VA2PA(child->user_program_base + size);
-    update_page_table(child, virtual_addr, physical_addr, 0b101);
+    update_page_table(child, virtual_addr, physical_addr, 0b110);
   }
+
+  for (uint64_t size = 0; size < PERIPHERAL_END - PERIPHERAL_START; size += PAGE_SIZE) {
+    uint64_t identity_page = PERIPHERAL_START + size; 
+    // printf("identity_page=%p\n",identity_page);
+    update_page_table(child, identity_page , identity_page, 0b110);
+  }
+
   uint64_t virtual_addr = USER_STACK_BASE;
   uint64_t physical_addr = VA2PA(child->user_stack_base);
   update_page_table(child, virtual_addr, physical_addr, 0b110);
@@ -347,8 +355,14 @@ void exec() {
   for (uint64_t size = 0; size < cur->user_program_size; size += PAGE_SIZE) {
     uint64_t virtual_addr = USER_PROGRAM_BASE + size;
     uint64_t physical_addr = VA2PA(cur->user_program_base + size);
-    update_page_table(cur, virtual_addr, physical_addr, 0b101);
+    update_page_table(cur, virtual_addr, physical_addr, 0b110);
   }
+  for (uint64_t size = 0; size < PERIPHERAL_END - PERIPHERAL_START; size += PAGE_SIZE) {
+    uint64_t identity_page = PERIPHERAL_START + size; 
+    // printf("identity_page=%p\n",identity_page);
+    update_page_table(cur, identity_page , identity_page, 0b110);
+  }
+
   uint64_t virtual_addr = USER_STACK_BASE;
   uint64_t physical_addr = VA2PA(cur->user_stack_base);
   update_page_table(cur, virtual_addr, physical_addr, 0b110);
@@ -358,22 +372,18 @@ void exec() {
 
   uint64_t user_sp = USER_STACK_BASE + STACK_SIZE;
 
-
-
-
-    uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = USER_PROGRAM_BASE;
-    uint64_t target_sp = user_sp;
-    //cpio_load_user_program("user_program.img", target_addr);
-    //cpio_load_user_program("syscall.img", target_addr);
-    //cpio_load_user_program("test_loop", target_addr);
-    //cpio_load_user_program("user_shell", target_addr);
-
-    asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
-    asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
-    asm volatile("msr sp_el0, %0" : : "r"(target_sp));
-    asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
-                          // we set the register manually to perform a "jump" or switchning between kernel and user space.
+  uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
+  uint64_t target_addr = USER_PROGRAM_BASE;
+  uint64_t target_sp = user_sp;
+  //cpio_load_user_program("user_program.img", target_addr);
+  //cpio_load_user_program("syscall.img", target_addr);
+  //cpio_load_user_program("test_loop", target_addr);
+  //cpio_load_user_program("user_shell", target_addr);
+  asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
+  asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
+  asm volatile("msr sp_el0, %0" : : "r"(target_sp));
+  asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
+                        // we set the register manually to perform a "jump" or switchning between kernel and user space.
 }
 
 
@@ -407,6 +417,7 @@ void thread_free_page(thread_info *thread) {
 
 void switch_pgd(uint64_t next_pgd) {
   asm volatile("dsb ish");  // ensure write has completed
+  // we only replace the content in ttbr1_el1 since the ttbr1_el1 will be used for kernel address
   asm volatile("msr ttbr0_el1, %0"
                :
                : "r"(next_pgd));   // switch translation based address.

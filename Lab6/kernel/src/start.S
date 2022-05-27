@@ -14,43 +14,47 @@ _start:
 
 master:
     // save dtb loading address
-    //ldr x1, =0x9000000
-    //str x0, [x1]
+    // ldr x1, =0x9000000
+    // str x0, [x1]
 
     bl from_el2_to_el1
     bl set_exception_vector_table
 
 set_virtual_memory:
+    // virtual memory address offset size and page size setting
     ldr x0, =TCR_CONFIG_DEFAULT
     msr tcr_el1, x0
 
+    // load memory policy into register mair_el1
     ldr x0, =( \
         (MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE_nGnRnE * 8)) | \
         (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL_NOCACHE * 8)) \
     )
     msr mair_el1, x0
 
-    ldr x0, =PGD_BASE // PGD's page frame at 0x0
-    ldr x1, =PUD_BASE // PGD's page frame at 0x0
-    ldr x2, =PMD_BASE // PGD's page frame at 0x0
-    ldr x3, =PTE_BASE // PGD's page frame at 0x0
+    ldr x0, =PGD_BASE
+    ldr x1, =PUD_BASE
+    ldr x2, =PMD_BASE
+    ldr x3, =PTE_BASE
 
+    // stores addr of PUD into 1st entry of PGD
     ldr x4, =BOOT_PGD_ATTR
     mov x5, x1
     orr x6, x5, x4 // combine the physical address of next level page with attribute.
     str x6, [x0]
 
+    // s
     ldr x4, =BOOT_PUD_ATTR
     mov x5, x2
     orr x6, x5, x4
     str x6, [x1] // 1st 1GB mapped by the 1st entry of PUD
-    add x5, x5, #0x1000
+    add x5, x5, #0x1000 // address is 9 bits, but each entry has 8 byte, so it's 2^12 byte, i.e. 0x1000
     orr x6, x5, x4
     str x6, [x1, 8] // 2nd 1GB mapped by the 2nd entry of PUD
 
     ldr x4, =BOOT_PMD_ATTR
-    mov x5, x3
-    mov x7, x2
+    mov x5, x3 // stores PTE_BASE to x5
+    mov x7, x2 // stores PMD_BASE tp x7
     mov x9, #(512 * 2)
 set_PMD:
     orr x6, x5, x4

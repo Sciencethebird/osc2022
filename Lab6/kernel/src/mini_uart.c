@@ -2,6 +2,8 @@
 #include "printf.h"
 #include "gpio.h"
 
+int buffer_idx = 0;
+
 void uart_init() {
   register unsigned int r;
   r = *GPFSEL1;
@@ -62,20 +64,30 @@ char uart_getc() {
     //printf("adfasd");
   }
   // read character
+  //printf("writing char\n\n");
   char r = (char)(*AUX_MU_IO_REG);
+  //printf("writing done\n\n");
   // '\r' => '\n'
   return r == '\r' ? '\n' : r;
 }
 
 uint32_t uart_gets(char *buf, uint32_t size) {
-  for (int i = 0; i < size; ++i) {
-    //printf("uart_gets size: %d\n", size);
-    buf[i] = uart_getc();
-    //uart_send(buf[i]);
-    if (buf[i] == '\n' || buf[i] == '\r') {
-      //uart_send('\r');
-      //buf[i] = '\0';
-      return i;
+
+  /* 
+  unsolved bug note:
+      scenario: 
+        - MMU memory error after forking a mbox process.
+        - this causes by context switching back, and the value of i
+          somehow got messed up, ending up using weird value 
+          to index buf (buf[-65536])
+      temp solution:
+        - add a delay after fork(sp) in parent process
+        - change i to a function argument or global variable (so i is not on stack.)
+  */
+  for (buffer_idx = 0; buffer_idx < size; ++buffer_idx) {
+    buf[buffer_idx] = uart_getc();
+    if (buf[buffer_idx] == '\n' || buf[buffer_idx] == '\r') {
+      return buffer_idx;
     }
   }
   return size;

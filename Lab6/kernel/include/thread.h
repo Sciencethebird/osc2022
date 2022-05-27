@@ -75,18 +75,12 @@ extern thread_info *get_current();
 extern void switch_to(uint64_t, uint64_t);
 
 typedef struct {
-  uint64_t x[31];
+  uint64_t x[31]; // x0 to x30
   uint64_t spsr_el1;
   uint64_t elr_el1;
   uint64_t sp_el0;
 } trap_frame_t;
 
-typedef struct {
-  uint64_t x[31];
-  uint64_t tpidr_el1;
-  uint64_t lr;
-  uint64_t sp;
-} exception_frame_t;
 
 // thread API
 void thread_init();

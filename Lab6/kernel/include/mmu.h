@@ -8,3 +8,4 @@
 void init_page_table(thread_info *thread, uint64_t **table);
 void update_page_table(thread_info *thread, uint64_t virtual_addr,
                        uint64_t physical_addr, int permission);
+uint64_t user_VA2PA(thread_info *thread, uint64_t user_VA);
