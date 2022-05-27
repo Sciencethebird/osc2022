@@ -1,6 +1,7 @@
 // save general registers to stack
 .macro save_reg
     sub sp, sp, 32 * 9
+    /* store to sp so you can access these register value in the function argument */
     stp x0, x1, [sp, 16 * 0]
     stp x2, x3, [sp, 16 * 1]
     stp x4, x5, [sp, 16 * 2]

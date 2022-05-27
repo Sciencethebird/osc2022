@@ -18,8 +18,6 @@ void core_timer_enable(int tval) {
   //asm volatile("ldr x1, =0x40000040");
   //asm volatile("str w0, [x1]");  // unmask timer interrupt
   *CORE0_TIMER_IRQ_CTRL = 2;
-  //curr_time =0;
-  //head_event = 0; // no timeout event yet
   
   // enable cpu timer register for gura video!!!!
   uint64_t tmp;
