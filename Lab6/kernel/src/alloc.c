@@ -309,8 +309,7 @@ void *malloc(uint64_t size) {
     // create another free slot if remaining size is big enough
     uint64_t order = frame_ptr->order;
     uint64_t total_size = (1 << order) * 4 * kb;
-    int64_t free_size =
-        total_size - allocated_size - align_up(sizeof(dma_header), 8);
+    int64_t free_size = total_size - allocated_size - align_up(sizeof(dma_header), 8);
     if (free_size > 0) {
       dma_header *new_header = (dma_header *)(addr + allocated_size);
       new_header->total_size = total_size - allocated_size;

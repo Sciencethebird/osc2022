@@ -8,6 +8,13 @@
 #include "thread.h"
 
 void init_page_table(thread_info *thread, uint64_t **table) {
+  /*
+    uint64_t thread_allocate_page(thread_info *thread, uint64_t size) {
+        page_frame *page_frame = buddy_allocate(size);
+        thread->page_frame_ids[thread->page_frame_count++] = page_frame->id;
+        return page_frame->addr;
+    }
+  */
   *table = (uint64_t *)thread_allocate_page(thread, PAGE_SIZE);
   for (int i = 0; i < 512; i++) {
     *((*table) + i) = 0;
@@ -37,12 +44,12 @@ void update_page_table(thread_info *thread, uint64_t virtual_addr,
       (virtual_addr >> 39) & 0x1ff, (virtual_addr >> 30) & 0x1ff,
       (virtual_addr >> 21) & 0x1ff, (virtual_addr >> 12) & 0x1ff};
 
-  //printf("virtual addr: 0x%llx", virtual_addr);
-  //printf(", index: 0x%llx", index[0]);
-  //printf(", index: 0x%llx", index[1]);
-  //printf(", index: 0x%llx", index[2]);
-  //printf(", index: 0x%llx\n", index[3]);
-  //printf("physical addr: 0x%llx\n", physical_addr);
+  // printf("virtual addr: 0x%llx", virtual_addr);
+  // printf(", index: 0x%llx", index[0]);
+  // printf(", index: 0x%llx", index[1]);
+  // printf(", index: 0x%llx", index[2]);
+  // printf(", index: 0x%llx\n", index[3]);
+  // printf("physical addr: 0x%llx\n", physical_addr);
   
   /*
     In kernel, due to identity mapping, both 0xffff...[addr] and 0x0000...[addr] will be map to the same physical address [addr],
@@ -65,7 +72,7 @@ void update_page_table(thread_info *thread, uint64_t virtual_addr,
     /*
         & ~0xfff means & 11111....000
         since, remeber, the least 12 bits of a table entry is used for memory attribute, 
-        you need to first filter them out so it gets the actual address of the next talbe.
+        you need to first filter them out so it gets the actual address of the next table.
     */
     table = (uint64_t *)PA2VA(table[index[level]] & ~0xfff); // filter out memory attribute to get the actual address
     //printf("table VA: 0x%llx\n\n", (uint64_t)table);

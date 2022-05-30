@@ -106,9 +106,9 @@ void idle() {
 }
 
 void exit() {
-  //disable_interrupt();
-  //thread_info *cur = current_thread();
-  //cur->status = THREAD_DEAD;
+  // disable_interrupt();
+  // thread_info *cur = current_thread();
+  // cur->status = THREAD_DEAD;
   // kill all thread in this lab, formally, you have to maitain a child pid list and kill child too.
   for (thread_info *ptr = run_queue.head; ptr->next != 0; ptr = ptr->next) {
       ptr->status = THREAD_DEAD;
@@ -128,7 +128,6 @@ void kill(int pid){
     }
   }
 }
-
 
 void kill_zombies() {
   //disable_interrupt();
@@ -197,6 +196,7 @@ void handle_fork() {
 }
 
 void create_child(thread_info *parent, thread_info *child) {
+
   child->user_stack_base = thread_allocate_page(child, STACK_SIZE);
   child->user_program_base = thread_allocate_page(child, USER_PROGRAM_SIZE);
   child->user_program_size = parent->user_program_size;
@@ -204,6 +204,7 @@ void create_child(thread_info *parent, thread_info *child) {
   child->child_pid = 0;
   
   init_page_table(child, &(child->pgd));
+
   for (uint64_t size = 0; size < child->user_program_size; size += PAGE_SIZE) {
     uint64_t virtual_addr = USER_PROGRAM_BASE + size;
     uint64_t physical_addr = VA2PA(child->user_program_base + size);
@@ -247,8 +248,7 @@ void create_child(thread_info *parent, thread_info *child) {
   }
 
   // set correct address for child
-  uint64_t kernel_stack_base_dist =
-      child->kernel_stack_base - parent->kernel_stack_base;
+  uint64_t kernel_stack_base_dist = child->kernel_stack_base - parent->kernel_stack_base;
   child->context.fp += kernel_stack_base_dist;
   child->context.sp += kernel_stack_base_dist;
   child->trap_frame_addr = parent->trap_frame_addr + kernel_stack_base_dist;
@@ -341,22 +341,43 @@ void thread_timer_test(){
 
 void exec() {
   thread_info *cur = get_current();
+
   if (cur->user_program_base == 0) {
-    cur->user_program_base = thread_allocate_page(cur, USER_PROGRAM_SIZE);
-    cur->user_stack_base = thread_allocate_page(cur, STACK_SIZE);
-    init_page_table(cur, &(cur->pgd));
+    // thread_allocate_page is just buddy_allocate, which allocates a page.
+    // thread_allocate_page also stores additional information about the page, 
+    // but it's actually useless.
+
+    cur->user_program_base = buddy_allocate(USER_PROGRAM_SIZE)->addr; //thread_allocate_page(cur, USER_PROGRAM_SIZE);
+    cur->user_stack_base = buddy_allocate(STACK_SIZE)->addr; //thread_allocate_page(cur, STACK_SIZE);
+    /*
+      Why can't you use malloc to allocate pages?
+        the reason is simple, the address of malloc is not aligned to the page size, 
+        this cause problem since when translating the address, you and page offset with page address,
+        if your page address is not xxxxx0000 0000 0000, you'll end you using a corrupted address.
+
+        buddy_allocate() returns the actual aligned page address (see buddy_init)
+        it uses page_frame array to store the address of every single pages.
+
+        malloc() uses page, but it stores dma_header in the beginning of the page, and return the 
+        address after that, so the address you got is not aligned to 2^12.
+    */
+    init_page_table(cur, &(cur->pgd)); 
+    // assign a page, fill each entry with zero and uses physical address.
+
+    // printf("user_program_base: %x\n", cur->user_program_base);
     // printf("cur_pgd: 0x%llx\n", (uint64_t)(cur->pgd));
     // printf("user program base: 0x%llx\n", cur->user_program_base);
     // printf("user stack base: 0x%llx\n", cur->user_stack_base);
   }
 
-  cur->user_program_size =
-      cpio_load_user_program("vm.img", cur->user_program_base);
+  cur->user_program_size = cpio_load_user_program("vm.img", cur->user_program_base);
+  // map the user program page tables
   for (uint64_t size = 0; size < cur->user_program_size; size += PAGE_SIZE) {
     uint64_t virtual_addr = USER_PROGRAM_BASE + size;
     uint64_t physical_addr = VA2PA(cur->user_program_base + size);
     update_page_table(cur, virtual_addr, physical_addr, 0b110);
   }
+  // map current peripheral addresses to the new user PGD
   for (uint64_t size = 0; size < PERIPHERAL_END - PERIPHERAL_START; size += PAGE_SIZE) {
     uint64_t identity_page = PERIPHERAL_START + size; 
     // printf("identity_page=%p\n",identity_page);
@@ -375,10 +396,12 @@ void exec() {
   uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
   uint64_t target_addr = USER_PROGRAM_BASE;
   uint64_t target_sp = user_sp;
+
   //cpio_load_user_program("user_program.img", target_addr);
   //cpio_load_user_program("syscall.img", target_addr);
   //cpio_load_user_program("test_loop", target_addr);
   //cpio_load_user_program("user_shell", target_addr);
+
   asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
   asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
   asm volatile("msr sp_el0, %0" : : "r"(target_sp));
@@ -403,8 +426,9 @@ void exec_my_user_shell() {
 }
 
 
+//
 uint64_t thread_allocate_page(thread_info *thread, uint64_t size) {
-  page_frame *page_frame = buddy_allocate(size);
+  page_frame *page_frame = buddy_allocate(size); // no malloc since the address from malloc is not aligned to 2^12 (wrong page start)
   thread->page_frame_ids[thread->page_frame_count++] = page_frame->id;
   return page_frame->addr;
 }

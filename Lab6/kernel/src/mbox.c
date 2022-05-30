@@ -46,7 +46,12 @@ volatile unsigned int  __attribute__((aligned(16))) mbox[36];
  */
 int mbox_call(unsigned char ch)
 {
-    unsigned int r = (((unsigned int)((unsigned long)&mbox)&~0xF) | (ch&0xF));
+    /*
+        you don't actually need VA2PA here since int r only uses 32 bit
+        but it's a good practice since real physical address is intended
+        for calculating the calue of r.
+    */
+    unsigned int r = (((unsigned int)((unsigned long)VA2PA(&mbox))&~0xF) | (ch&0xF));
     /* wait until we can write to the mailbox */
     do{asm volatile("nop");}while(*MBOX_STATUS & MBOX_FULL);
     /* write the address of our message to the mailbox with channel identifier */
