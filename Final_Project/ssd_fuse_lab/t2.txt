@@ -1,0 +1,29 @@
+
+// find a empty page as target destination
+            while(1){
+                if( (P2L[gc_end_page_idx]== INVALID_LBA) || (P2L[gc_end_page_idx]==STALE_LBA) ){
+                    // move page to this targe page
+                    /*buf , ftl_read, ftl_write...*/
+                    printf("[GC] P2L[gc_start_page_idx]: %x",P2L[gc_start_page_idx]);
+                    printf("[GC] before move: swap(%d, %d)\n", gc_start_page_idx, gc_end_page_idx);
+                    print_pca();
+                    int lba_move = P2L[gc_start_page_idx];
+                    P2L[gc_end_page_idx] = lba_move;
+                    //L2P[ lba_move ] = gc_end_page_idx;
+                    P2L[gc_start_page_idx] = STALE_LBA;
+                    printf("[GC] after move:\n");
+                    print_pca();
+                }else{
+                    gc_end_page_idx = (gc_end_page_idx+TOTAL_LOGICAL_PAGE-1)%TOTAL_LOGICAL_PAGE;
+                }
+                if(gc_end_page_idx == gc_start_page_idx){
+                    printf("[GC] end page index: %d\n", gc_end_page_idx);
+                    printf("[GC] garbage collection done!!!\n");
+                    gc_done = 1;
+                    break;
+                }
+
+                if(safe_idx++ > 1000){
+                    break;
+                }
+            }

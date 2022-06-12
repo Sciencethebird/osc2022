@@ -4,6 +4,8 @@ SSD_FILE="/tmp/ssd/ssd_file"
 GOLDEN="/tmp/ssd_file_golden"
 TEMP="/tmp/temp"
 touch ${GOLDEN}
+
+# zero the size of the file. (clearning the file?)
 truncate -s 0 ${SSD_FILE}
 truncate -s 0 ${GOLDEN}
 
@@ -23,12 +25,42 @@ case "$1" in
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
         for i in $(seq 0 9)
         do
-            dd if=${TEMP} skip=$(($i*1024)) of=${GOLDEN} oflag=seek_bytes seek=$(($i*5120)) bs=1024 count=1 conv=notrunc 2> /dev/null
-            dd if=${TEMP} skip=$(($i*1024)) of=${SSD_FILE} oflag=seek_bytes seek=$(($i*5120)) bs=1024 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} skip=$(($i*1024)) of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=$(($i*5120)) bs=1024 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} skip=$(($i*1024)) of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=$(($i*5120)) bs=1024 count=1 conv=notrunc 2> /dev/null
         done
-        dd if=${TEMP} skip=10240 of=${GOLDEN} oflag=seek_bytes seek=0 bs=1024 count=1 conv=notrunc 2> /dev/null
-        dd if=${TEMP} skip=10240 of=${SSD_FILE} oflag=seek_bytes seek=0 bs=1024 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} skip=3000 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=0 bs=2048 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} skip=3000 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=0 bs=2048 count=1 conv=notrunc 2> /dev/null
         ;;
+    "test3")
+        # multiple overwrite test
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        for i in $(seq 0 100)
+        do
+            dd if=${TEMP} skip=1024 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=6789 bs=5000 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} skip=1024 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=6789 bs=5000 count=1 conv=notrunc 2> /dev/null
+        done
+        dd if=${TEMP} skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
+        ;;
+    "test4")
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=1 bs=1 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=1 bs=1 count=1 conv=notrunc 2> /dev/null
+        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        #./ssd_fuse_dut /tmp/ssd/ssd_file w 10240 0
+        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
+        
+        #dd if="t1.txt" skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=123 bs=1024 count=1 conv=notrunc 2> /dev/null
+        #dd if="t1.txt" skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=123 bs=1024 count=1 conv=notrunc 2> /dev/null
+        ;;
+    
     *)
         printf "Usage: sh test.sh test_pattern\n"
         printf "\n"
@@ -54,5 +86,5 @@ else
 fi
 
 echo "WA:"
-./ssd_fuse_dut /tmp/ssd/ssd_file W
+./ssd_fuse_dut ${SSD_FILE} W
 rm -rf ${TEMP} ${GOLDEN}
