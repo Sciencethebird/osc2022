@@ -148,9 +148,9 @@ int is_valid_lba(unsigned int lba){
 }
 void garbage_collection(){
 
-    fprintf(debug, "\n\n\n\n\n#################################################################################\n");
-    fprintf(debug, "\n\t\t\t\t\t[GC] start garbage collection\n");
-    fprintf(debug, "\n#################################################################################\n\n");
+    fprintf(debug, "\n\n\n\n\n%s\n", DIVIDER2);
+    fprintf(debug, "\n\t\t\t\t\t[GC] garbage collection start\n");
+    fprintf(debug, "\n%s\n\n", DIVIDER2);
     fprintf(debug, "[GC] current pca [%d, %d]\n", curr_pca.fields.nand, curr_pca.fields.lba);
 
     int gc_end_block = curr_pca.fields.nand;
@@ -163,8 +163,9 @@ void garbage_collection(){
     int safe_idx = 0; // prevent infinite loop
 
     fprintf(debug, "[GC] gc section [%d -> %d]\n", gc_start_block, gc_end_block);
-    fprintf(debug, "[GC] L2P (PCA) before garbage collection");
+    fprintf(debug, "[GC] L2P (PCA) before garbage collection: ");
     print_pca();
+    fprintf(debug, "\n[GC] garbage collection start...\n");
 
     while(1){
 
@@ -263,9 +264,9 @@ void garbage_collection(){
     }
 
     fprintf(debug, "[GC] total physical free block %d\n", free_block_number);
-    fprintf(debug, "\n#################################################################################\n");
+    fprintf(debug, "\n%s\n", DIVIDER2);
     fprintf(debug, "\n\t\t\t\t\t[GC] garbage collection done !!!!\n");
-    fprintf(debug, "\n#################################################################################\n\n");
+    fprintf(debug, "\n%s\n\n", DIVIDER2);
 }
 
 static unsigned int get_next_block()
@@ -329,7 +330,7 @@ static unsigned int get_next_pca()
 }
 
 void print_lba(){
-    fprintf(debug,"\n\n======================================= LBA (L2P) =========================================\n\n");
+    fprintf(debug,"\n\n%s LBA (L2P) %s\n\n", HALF_DIVIDER, HALF_DIVIDER);
     for(int i = 0; i<LOGICAL_NAND_NUM ; i++){
         fprintf(debug,"[block %d]:\t", i);
         for(int j = 0; j<PAGE_PER_BLOCK ; j++){
@@ -346,11 +347,11 @@ void print_lba(){
         }
         fprintf(debug,"\n");
     }
-    fprintf(debug,"\n============================================================================================\n\n");
+    fprintf(debug,"\n%s\n\n", DIVIDER);
 }
 
 void print_pca(){
-    fprintf(debug,"\n\n======================================= PCA (P2L) =========================================\n\n");
+    fprintf(debug,"\n\n%s PCA (P2L) %s\n\n", HALF_DIVIDER, HALF_DIVIDER);
     for(int i = 0; i<PHYSICAL_NAND_NUM ; i++){
         fprintf(debug,"[block %d]:\t", i);
         for(int j = 0; j<PAGE_PER_BLOCK ; j++){
@@ -365,7 +366,7 @@ void print_pca(){
         }
         fprintf(debug,"\n");
     }
-    fprintf(debug,"\n============================================================================================\n\n");
+    fprintf(debug,"\n%s\n\n", DIVIDER);
 }
 
 static int ftl_read( char* buf, size_t lba)

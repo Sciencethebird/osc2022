@@ -28,6 +28,10 @@
 
 #define TOTAL_LOGICAL_PAGE (PHYSICAL_NAND_NUM * PAGE_PER_BLOCK)
 
+#define DIVIDER "============================================================================================"
+#define HALF_DIVIDER "========================================"
+#define DIVIDER2 "#################################################################################"
+
 enum
 {
     SSD_GET_LOGIC_SIZE    = _IOR('E', 0, size_t),
