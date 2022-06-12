@@ -66,4 +66,19 @@ int strcmp(const char *p1, const char *p2) {
     if (c1 == '\0') return c1 - c2;
   } while (c1 == c2);
   return c1 - c2;
+  // returns 0 if two strings are identical
+}
+
+char *strcpy(char *dst, const char *src) {
+  // return if no memory is allocated to the destination
+  if (dst == 0) return 0;
+
+  char *ptr = dst;
+  while (*src != '\0') {
+    *dst = *src;
+    dst++;
+    src++;
+  }
+  *dst = '\0';
+  return ptr;
 }

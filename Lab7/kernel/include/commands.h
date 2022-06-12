@@ -32,6 +32,7 @@ void shell_thread_test(char* args);
 void shell_thread_timer_test(char* args);
 void shell_run(char* args);
 void shell_dtb(char* args);
+void shell_vfs_test(char* args);
 
 extern commads cmd_list[];
 extern int cmd_num;

@@ -5,6 +5,7 @@
 
 int strcmp(const char *p1, const char *p2);
 char *strstr(const char *s, const char *find);
+char *strcpy(char *dst, const char *src);
 int compare(char const *a, char const *b);
 int find_substr(char const *source, char const *target, int start);
 int strlen(const char *s);

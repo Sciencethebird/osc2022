@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "thread.h"
 #include "kernel.h"
+#include "vfs.h"
 //extern commads cmd_list[];
 
 #define BUFFER_LEN 1000
@@ -88,6 +89,8 @@ void main()
     buddy_init();
     // thread init
     thread_init();
+    // virtual file system init
+    vfs_init();
     // say hello
     uart_puts("Wellcome!\r\n");
     // enables interrupt in EL1 (for uart async IO)

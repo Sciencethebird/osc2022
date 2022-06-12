@@ -33,7 +33,8 @@ commads cmd_list[]=
     {.cmd="dma", .help="dynamic memory allocation test", .func=shell_dma_test},
     {.cmd="thread", .help="basic thread function testing", .func=shell_thread_test}, 
     {.cmd="thread-timer", .help="thread scheduling with timer interrrupt", .func=shell_thread_timer_test},
-    {.cmd="run", .help="run user program", .func=shell_run}
+    {.cmd="run", .help="run user program", .func=shell_run}, 
+    {.cmd="vfs_test", .help="test your virtual file system", .func=shell_vfs_test}
 };
 
 int cmd_num = sizeof(cmd_list)/sizeof(commads);
@@ -329,4 +330,8 @@ void shell_thread_timer_test(char* args){
 
 void shell_dtb(char* args){
     dtb_print(0);
+}
+
+void shell_vfs_test(char* args){
+    vfs_test();
 }
