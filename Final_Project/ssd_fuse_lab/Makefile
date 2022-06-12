@@ -26,6 +26,7 @@ umount:
 	#fusermount -u /tmp/ssd
 	umount /tmp/ssd
 clean:
+	rm debug.txt
 	rm ssd_fuse ssd_fuse_dut
 	rm -rf /tmp/ssd
 	mkdir /tmp/ssd

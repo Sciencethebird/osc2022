@@ -27,9 +27,6 @@
 #define NAND_LOCATION  "/home/sciencethebird/Desktop/osc2022/Final_Project/ssd_fuse_lab/ssd"
 
 #define TOTAL_LOGICAL_PAGE (PHYSICAL_NAND_NUM * PAGE_PER_BLOCK)
-#define PAGE_FREE  0
-#define PAGE_VALID 1
-#define PAGE_STALE 2
 
 enum
 {

@@ -35,10 +35,12 @@ case "$1" in
         # multiple overwrite test
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
-        for i in $(seq 0 100)
+        for i in $(seq 0 1000)
         do
             dd if=${TEMP} skip=1024 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=6789 bs=5000 count=1 conv=notrunc 2> /dev/null
             dd if=${TEMP} skip=1024 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=6789 bs=5000 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} skip=2024 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=123 bs=777 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} skip=2024 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=123 bs=777 count=1 conv=notrunc 2> /dev/null
         done
         dd if=${TEMP} skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
         dd if=${TEMP} skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null

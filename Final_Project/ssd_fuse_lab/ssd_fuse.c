@@ -48,7 +48,7 @@ union pca_rule
 PCA_RULE curr_pca;
 static unsigned int get_next_pca();
 
-unsigned int* L2P,* P2L,* valid_count, free_block_number, page_status;
+unsigned int* L2P,* P2L,* valid_count, free_block_number;
 
 static int ssd_resize(size_t new_size)
 {
@@ -153,8 +153,6 @@ void garbage_collection(){
     fprintf(debug, "\n#################################################################################\n\n");
     fprintf(debug, "[GC] current pca [%d, %d]\n", curr_pca.fields.nand, curr_pca.fields.lba);
 
-    
-
     int gc_end_block = curr_pca.fields.nand;
     int gc_start_block = (gc_end_block + 2)% PHYSICAL_NAND_NUM;
 
@@ -169,12 +167,16 @@ void garbage_collection(){
     print_pca();
 
     while(1){
+
         // find a valid page that needs moving.
         if( is_valid_lba(P2L[gc_start_page_idx]) == 1 ){
+
             // find a empty page (not valid page) as target destination to move to.
             fprintf(debug,"\n\n\n\n[GC] step <%d>\n", safe_idx);
             fprintf(debug,"[GC] finding a free page for page %d...\n", gc_start_page_idx);
-            while(1){
+
+            while(gc_end_page_idx != gc_start_page_idx){
+
                 if(  is_valid_lba(P2L[gc_end_page_idx]) == 0 ){
                     // move page to this target page
                     fprintf(debug,"[GC] found free page at %d, swap page (%d <-> %d)\n", gc_end_page_idx, gc_start_page_idx, gc_end_page_idx);
@@ -355,7 +357,7 @@ void print_pca(){
             unsigned int index = P2L[i*10+j];
             if (P2L[i*10+j] == STALE_LBA){
                 fprintf(debug,"[STLE],\t");
-            }else if(index > 100){
+            }else if(P2L[i*10+j] == INVALID_LBA){
                 fprintf(debug,"[IVLD],\t");
             }else{
                 fprintf(debug,"[%d],\t", index);
@@ -374,7 +376,7 @@ static int ftl_read( char* buf, size_t lba)
     if(pca != INVALID_PCA){
         nand_read(buf, pca);
     }else{
-        fprintf(debug,"\n\ninvalid PCA!!!!\n\n");
+        fprintf(debug,"[ftl_read] invalid PCA, ignoring nand_read\n");
     }
 }
 
@@ -397,13 +399,14 @@ static int ftl_write(const char* buf, size_t lba_range, size_t lba)
             P2L[stale_pca.fields.nand*10 + stale_pca.fields.lba] = STALE_LBA; // mark this block as free to use?
         }
         
-        PCA_RULE new_pca, curr_lba;
+        PCA_RULE new_pca;
         new_pca.pca = get_next_pca();
 
         fprintf(debug,"\n[new pca]: [%d:%d]\n", curr_pca.fields.nand, curr_pca.fields.lba);
 
         L2P[lba+idx] = new_pca.pca;
         P2L[new_pca.fields.nand*10 + new_pca.fields.lba] = lba+idx; // should I store the full PCA_RULE??????
+
         print_lba();
         print_pca();
 
@@ -502,11 +505,7 @@ static int ssd_read(const char* path, char* buf, size_t size,
 }
 
 static int ssd_do_write(const char* buf, size_t size, off_t offset)
-{
-    //for(int i = 0; i<5; i++){
-    //    fprintf(debug,"\n[buf]: %d\n", buf[i]);
-    //}
-    
+{    
     fprintf(debug, "[ssd_do_write] strlen: %d\n", strlen(buf));
     int tmp_lba, tmp_lba_range, tmp_offset, process_size;
     int idx, curr_size, remain_size, rst;
@@ -523,16 +522,16 @@ static int ssd_do_write(const char* buf, size_t size, off_t offset)
     tmp_lba_range = (offset + size - 1) / 512 - (tmp_lba) + 1; // how many logical blocks you need
     tmp_buf = calloc(tmp_lba_range * 512, sizeof(char));
     
+    //fprintf(debug,"\n\n[offset ]: %d\n", offset);
+    //fprintf(debug,"[tmp_lba_range]: %d\n", tmp_lba_range);
+    //fprintf(debug,"[tmp_lba]: %d\n\n", tmp_lba);
+
     for (idx = 0; idx < tmp_lba_range; idx++)
     {
         // TODO
         ftl_read(tmp_buf+(idx*512), tmp_lba+idx);
     }
     memcpy(tmp_buf+tmp_offset, buf, size);
-    
-    //fprintf(debug,"\n\n[offset ]: %d\n", offset);
-    //fprintf(debug,"[tmp_lba_range]: %d\n", tmp_lba_range);
-    //fprintf(debug,"[tmp_lba]: %d\n\n", tmp_lba);
 
     ftl_write(tmp_buf, tmp_lba_range, tmp_lba);
     return size;
@@ -637,9 +636,6 @@ int main(int argc, char* argv[])
 
     print_lba();
     print_pca();
-    // for garbage collection
-    //page_status = malloc(PHYSICAL_NAND_NUM * PAGE_PER_BLOCK * sizeof(int));
-    //memset(page_status, PAGE_FREE, sizeof(int) * PHYSICAL_NAND_NUM * PAGE_PER_BLOCK);
 
     //create nand file
     for (idx = 0; idx < PHYSICAL_NAND_NUM; idx++)
