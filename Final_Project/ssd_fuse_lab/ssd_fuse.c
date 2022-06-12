@@ -159,7 +159,6 @@ void garbage_collection(){
     int gc_start_page_idx = gc_start_block * PAGE_PER_BLOCK;
     int gc_end_page_idx = gc_end_block * PAGE_PER_BLOCK + (PAGE_PER_BLOCK-1);
 
-    int gc_done = 0;
     int safe_idx = 0; // prevent infinite loop
 
     fprintf(debug, "[GC] gc section [%d -> %d]\n", gc_start_block, gc_end_block);
@@ -167,18 +166,22 @@ void garbage_collection(){
     print_pca();
     fprintf(debug, "\n[GC] garbage collection start...\n");
 
-    while(1){
-
+    while(1)
+    {
         // find a valid page that needs moving.
-        if( is_valid_lba(P2L[gc_start_page_idx]) == 1 ){
+        if( is_valid_lba(P2L[gc_start_page_idx]) == 1 )
+        {
 
             // find a empty page (not valid page) as target destination to move to.
             fprintf(debug,"\n\n\n\n[GC] step <%d>\n", safe_idx);
             fprintf(debug,"[GC] finding a free page for page %d...\n", gc_start_page_idx);
 
-            while(gc_end_page_idx != gc_start_page_idx){
+            while( gc_end_page_idx != gc_start_page_idx )
+            {
 
-                if(  is_valid_lba(P2L[gc_end_page_idx]) == 0 ){
+                if( is_valid_lba(P2L[gc_end_page_idx]) == 0 )
+                {
+
                     // move page to this target page
                     fprintf(debug,"[GC] found free page at %d, swap page (%d <-> %d)\n", gc_end_page_idx, gc_start_page_idx, gc_end_page_idx);
                     fprintf(debug,"[GC] before swap:", gc_start_page_idx, gc_end_page_idx);
@@ -213,52 +216,65 @@ void garbage_collection(){
                 }
 
                 // index decrement
-                gc_end_page_idx = (gc_end_page_idx+TOTAL_LOGICAL_PAGE-1)%TOTAL_LOGICAL_PAGE;
+                gc_end_page_idx = (gc_end_page_idx + TOTAL_LOGICAL_PAGE -1) % TOTAL_LOGICAL_PAGE;
 
-                if(gc_end_page_idx == gc_start_page_idx){
+                if(gc_end_page_idx == gc_start_page_idx)
+                {
                     break;
                 }
 
                 // fail safe
-                if(safe_idx++ > 400){
+                if(safe_idx++ > 400)
+                {
                     fprintf(debug,"[GC] gc error exits!!!!!!!!\n");
                     break;
                 }
             }
         }
         
-        if(gc_end_page_idx == gc_start_page_idx){
+        if( gc_end_page_idx == gc_start_page_idx )
+        {
             fprintf(debug,"[GC] end page index: %d\n", gc_end_page_idx);
             fprintf(debug,"[GC] garbage collection done!!!\n");
             break;
         }
   
-        if(safe_idx++ > 400){
+        if( safe_idx++ > 400 )
+        {
             printf("[GC] gc error exits!!!!!!!!\n");
             break;
         }
 
         // index increment
-        gc_start_page_idx = (gc_start_page_idx+1)%TOTAL_LOGICAL_PAGE;
+        gc_start_page_idx = ( gc_start_page_idx +1) % TOTAL_LOGICAL_PAGE;
     }
     
     // free blocks with no valid data in it.
-    for(int i = gc_start_block; ; i=(i+1)%PHYSICAL_NAND_NUM ){
+    for(int i = gc_start_block; ; i=(i+1)%PHYSICAL_NAND_NUM )
+    {
+
         fprintf(debug, "[GC] checking block %d...\n", i);
         int is_free_block = 1;
-        for(int j = 0; j< PAGE_PER_BLOCK; j++){
+
+        for(int j = 0; j< PAGE_PER_BLOCK; j++)
+        {
             // check if a physical page containes any valid lba
-            if( is_valid_lba(P2L[i*10+j]) ){
+            if( is_valid_lba(P2L[i*10+j]) )
+            {
                 is_free_block = 0;
                 break;
             }
         }
-        if(is_free_block){
+
+        if(is_free_block)
+        {
             fprintf(debug, "[GC] freeing block %d...\n", i);
             valid_count[i] = FREE_BLOCK;
             free_block_number++;
         }
-        if(i == gc_end_block){
+
+        if(i == gc_end_block)
+        {
             break;
         }
     }
@@ -272,7 +288,8 @@ void garbage_collection(){
 static unsigned int get_next_block()
 {
     // gc code attept
-    if(free_block_number <= 1){
+    if(free_block_number <= 1)
+    {
         garbage_collection();
     }
 
@@ -331,16 +348,21 @@ static unsigned int get_next_pca()
 
 void print_lba(){
     fprintf(debug,"\n\n%s LBA (L2P) %s\n\n", HALF_DIVIDER, HALF_DIVIDER);
-    for(int i = 0; i<LOGICAL_NAND_NUM ; i++){
+    for(int i = 0; i<LOGICAL_NAND_NUM ; i++)
+    {
         fprintf(debug,"[block %d]:\t", i);
-        for(int j = 0; j<PAGE_PER_BLOCK ; j++){
+        for(int j = 0; j<PAGE_PER_BLOCK ; j++)
+        {
             PCA_RULE temp;
             temp.pca = L2P[i*10+j];
             unsigned int index = temp.fields.nand*10 + temp.fields.lba;
-            if(temp.pca == INVALID_PCA){
+
+            if(temp.pca == INVALID_PCA)
+            {
                 fprintf(debug,"[IVLD],\t");
-                //printf("[%d],\t", index);
-            }else{
+            }
+            else
+            {
                 fprintf(debug,"[%d],\t", index);
             }
             
@@ -352,15 +374,23 @@ void print_lba(){
 
 void print_pca(){
     fprintf(debug,"\n\n%s PCA (P2L) %s\n\n", HALF_DIVIDER, HALF_DIVIDER);
-    for(int i = 0; i<PHYSICAL_NAND_NUM ; i++){
+    for(int i = 0; i<PHYSICAL_NAND_NUM ; i++)
+    {
         fprintf(debug,"[block %d]:\t", i);
-        for(int j = 0; j<PAGE_PER_BLOCK ; j++){
+
+        for(int j = 0; j<PAGE_PER_BLOCK ; j++)
+        {
             unsigned int index = P2L[i*10+j];
-            if (P2L[i*10+j] == STALE_LBA){
+            if (P2L[i*10+j] == STALE_LBA)
+            {
                 fprintf(debug,"[STLE],\t");
-            }else if(P2L[i*10+j] == INVALID_LBA){
+            }
+            else if(P2L[i*10+j] == INVALID_LBA)
+            {
                 fprintf(debug,"[IVLD],\t");
-            }else{
+            }
+            else
+            {
                 fprintf(debug,"[%d],\t", index);
             }
         }
@@ -374,9 +404,12 @@ static int ftl_read( char* buf, size_t lba)
     // TODO
     // lba here means i-th logical page
     unsigned int pca = L2P[lba];
-    if(pca != INVALID_PCA){
+    if(pca != INVALID_PCA)
+    {
         nand_read(buf, pca);
-    }else{
+    }
+    else
+    {
         fprintf(debug,"[ftl_read] invalid PCA, ignoring nand_read\n");
     }
 }
@@ -392,7 +425,8 @@ static int ftl_write(const char* buf, size_t lba_range, size_t lba)
         // check if it's an overwrite on existing lba
         fprintf(debug,"\n[L2P index]: %d\n", lba+idx);
         
-        if(L2P[lba+idx] != INVALID_PCA){
+        if(L2P[lba+idx] != INVALID_PCA)
+        {
             fprintf(debug,"\noverwite to exesting lba...\n");
             PCA_RULE stale_pca;
             stale_pca.pca = L2P[lba+idx];
@@ -483,7 +517,8 @@ static int ssd_do_read(char* buf, size_t size, off_t offset)
     tmp_lba_range = (offset + size - 1) / 512 - (tmp_lba) + 1; // how many logical blocks you need
     tmp_buf = calloc(tmp_lba_range * 512, sizeof(char)); // use calloc for 'clean' memory (init with zero), why not size_t???
 
-    for (int i = 0; i < tmp_lba_range; i++) {
+    for (int i = 0; i < tmp_lba_range; i++) 
+    {
         // TODO
         ftl_read(tmp_buf + (512*i), tmp_lba+i);
     }
