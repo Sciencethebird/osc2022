@@ -42,20 +42,20 @@ case "$1" in
             dd if=${TEMP} skip=2024 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=123 bs=777 count=1 conv=notrunc 2> /dev/null
             dd if=${TEMP} skip=2024 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=123 bs=777 count=1 conv=notrunc 2> /dev/null
         done
-        dd if=${TEMP} skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
-        dd if=${TEMP} skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
-        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
+        #dd if=${TEMP} skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
+        #dd if=${TEMP} skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=0 bs=11264 count=1 conv=notrunc 2> /dev/null
+        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
         ;;
     "test4")
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
         dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=1 bs=1 count=1 conv=notrunc 2> /dev/null
         dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=1 bs=1 count=1 conv=notrunc 2> /dev/null
-        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
-        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
-        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
-        #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
-        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
-        #dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 11264 > ${TEMP}
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${GOLDEN} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
+        dd if=${TEMP} iflag=skip_bytes skip=0 of=${SSD_FILE} oflag=seek_bytes seek=10 bs=1024 count=1 conv=notrunc 2> /dev/null
         #./ssd_fuse_dut /tmp/ssd/ssd_file w 10240 0
         #cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
         
