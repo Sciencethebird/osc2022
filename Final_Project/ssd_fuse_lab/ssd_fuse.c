@@ -27,7 +27,6 @@ enum
     SSD_FILE,
 };
 
-
 static size_t physic_size;
 static size_t logic_size;
 static size_t host_write_size;
@@ -62,7 +61,6 @@ static int ssd_resize(size_t new_size)
         logic_size = new_size;
         return 0;
     }
-
 }
 
 static int ssd_expand(size_t new_size)
@@ -72,7 +70,6 @@ static int ssd_expand(size_t new_size)
     {
         return ssd_resize(new_size);
     }
-
     return 0;
 }
 
@@ -99,6 +96,7 @@ static int nand_read(char* buf, int pca)
     }
     return 512;
 }
+
 static int nand_write(const char* buf, int pca)
 {
     char nand_name[100];
@@ -131,6 +129,12 @@ static int nand_write(const char* buf, int pca)
 
 static int nand_erase(int block_index)
 {
+    if(valid_count[block_index] == FREE_BLOCK) {
+        fprintf(debug, "[nand_erase] warning: freeing a already freed block!!!!\n");
+    } else {
+        free_block_number++; // should I do this here????????
+    }
+    
     char nand_name[100];
     FILE* fptr;
     snprintf(nand_name, 100, "%s/nand_%d", NAND_LOCATION, block_index);
@@ -140,10 +144,9 @@ static int nand_erase(int block_index)
         printf("erase nand_%d fail", block_index);
         return 0;
     }
+
     fclose(fptr);
     valid_count[block_index] = FREE_BLOCK;
-
-    free_block_number++; // should I do this here????????
 
     return 1;
 }
@@ -175,6 +178,13 @@ void garbage_collection2(){
             continue;
         }
 
+        //if(valid_count[i] == FREE_BLOCK)
+        //{
+        //    fprintf(debug, "[GC] skip scanning free block, " 
+        //                   "when finding dirty block, curr block = %d\n", i);   
+        //    continue;
+        //}
+
         int stale_count = 0;
         for(int j = 0; j<PAGE_PER_BLOCK; j++)
         {
@@ -190,7 +200,22 @@ void garbage_collection2(){
             most_stale_block = i;
         }
     }
-    
+
+    // only run gc when there's just enough room 
+    //  for moving least valid pages in the dirty block
+    int least_valid_count = PAGE_PER_BLOCK - most_stale_count;
+    if(curr_pca.fields.lba+1 + least_valid_count <PAGE_PER_BLOCK) {
+       fprintf(debug, "[GC] no need for gc yet...\n"); 
+       return;
+    } else if (curr_pca.fields.lba+1 + least_valid_count > PAGE_PER_BLOCK) {
+        fprintf(debug, "[GC] error, no enough room for gc!!!!!\n");
+    }
+
+    // error detection
+    if(valid_count[most_stale_block] ==FREE_BLOCK){
+        fprintf(debug, "[GC] error, cleaning a free block!!!!!\n");
+    }
+
     if(most_stale_count > 0)// check if there's any valid data in that block
     {         
         fprintf(debug, "\n[GC] cleaning a dirty block at %d, with %d stale blocks...\n", 
@@ -203,7 +228,6 @@ void garbage_collection2(){
             if( is_valid_lba( P2L[dirty_page_idx] ) ){
 
                 // move valid page to a free page
-
                 PCA_RULE source_pca;
                 source_pca.fields.nand = most_stale_block;
                 source_pca.fields.lba =  i;
@@ -276,17 +300,14 @@ void garbage_collection(){
         // find a valid page that needs moving.
         if( is_valid_lba(P2L[gc_start_page_idx]) == 1 )
         {
-
             // find a empty page (not valid page) as target destination to move to.
             fprintf(debug,"\n\n\n\n[GC] step <%d>\n", safe_idx);
             fprintf(debug,"[GC] finding a free page for page %d...\n", gc_start_page_idx);
 
             while( gc_end_page_idx != gc_start_page_idx )
             {
-
                 if( is_valid_lba(P2L[gc_end_page_idx]) == 0 )
                 {
-
                     // move page to this target page
                     fprintf(debug,"[GC] found free page at %d, swap page (%d <-> %d)\n", 
                             gc_end_page_idx, gc_start_page_idx, gc_end_page_idx);
@@ -420,7 +441,8 @@ static unsigned int get_next_pca()
         int temp = get_next_block();
         if (temp == OUT_OF_BLOCK)
         {
-            fprintf(debug, "[get_next_pca] error: out of block!!!!!\n\n\n");
+            fprintf(debug, "\n\n[get_next_pca] error: out of block!!!!!\n");
+            fprintf(debug, "[get_next_pca] error: free block count %d\n\n\n", free_block_number);
             print_pca();
             return OUT_OF_BLOCK;
         }
@@ -537,7 +559,7 @@ static int ftl_write(const char* buf, size_t lba_range, size_t lba)
         }
         
         // gc code attept
-        if(free_block_number <= 1)
+        if(free_block_number <= 0)
         {
             garbage_collection2();
             //garbage_collection();
