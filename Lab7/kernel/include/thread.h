@@ -21,6 +21,9 @@
 #define SCHEDULE_TVAL_TEST 62500000 // 1 sec
 
 int from_kernel;
+
+extern char* exec_program_name;
+
 typedef struct {
   uint64_t x19;
   uint64_t x20;
@@ -111,8 +114,6 @@ void timer_schedular_handler();
 // thread testing functions
 void foo();
 void foo2();
-void thread_test();
-void thread_timer_test();
 
 
 // exec

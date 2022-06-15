@@ -5,9 +5,11 @@
 #include "vfs.h"
 
 void tmpfs_init() {
+  // vnode operations
   tmpfs_v_ops = malloc(sizeof(struct vnode_operations));
   tmpfs_v_ops->lookup = tmpfs_lookup;
   tmpfs_v_ops->create = tmpfs_create;
+  // file operations
   tmpfs_f_ops = malloc(sizeof(struct file_operations));
   tmpfs_f_ops->write = tmpfs_write;
   tmpfs_f_ops->read = tmpfs_read;
@@ -15,9 +17,12 @@ void tmpfs_init() {
 
 void tmpfs_set_fentry(struct tmpfs_fentry* fentry, const char* component_name,
                       FILE_TYPE type, struct vnode* vnode) {
+  // connect vnode and sync information
   strcpy(fentry->name, component_name);
   fentry->vnode = vnode;
-  fentry->type = type;
+  fentry->type = type; 
+
+  // setup child and parent if it's a directory.
   if (fentry->type == FILE_DIRECTORY) {
     for (int i = 0; i < MAX_FILES_IN_DIR; ++i) {
       fentry->child[i] =
@@ -26,6 +31,7 @@ void tmpfs_set_fentry(struct tmpfs_fentry* fentry, const char* component_name,
       fentry->child[i]->type = FILE_NONE;
       fentry->child[i]->parent = fentry;
     }
+  // setup buffer if it's a file.  
   } else if (fentry->type == FILE_REGULAR) {
     fentry->buf = malloc(sizeof(struct tmpfs_buf));
     fentry->buf->size = 0;
@@ -33,13 +39,25 @@ void tmpfs_set_fentry(struct tmpfs_fentry* fentry, const char* component_name,
 }
 
 int tmpfs_setup_mount(struct filesystem* fs, struct mount* mount) {
+
+  /* Issue: I think you should first create vnode in vfs.c, */
+  /*        then connect the vnode in the mount struct */
+
+  // create a tmpfs file entry
   struct tmpfs_fentry* root_fentry =
       (struct tmpfs_fentry*)malloc(sizeof(struct tmpfs_fentry));
+  
+  // connect tmpfs to vnode
   struct vnode* vnode = (struct vnode*)malloc(sizeof(struct vnode));
   vnode->v_ops = tmpfs_v_ops;
   vnode->f_ops = tmpfs_f_ops;
   vnode->internal = (void*)root_fentry;
+
+  // setup tmpfs entry and connect vnode to tmpfs
   tmpfs_set_fentry(root_fentry, "/", FILE_DIRECTORY, vnode);
+
+  // it's weird the mount struct seemed super useless.
+  // weird.....
   mount->fs = fs;
   mount->root = vnode;
   return 1;

@@ -12,6 +12,7 @@
 #include "dtb.h"
 #include "printf.h"
 #include "mmu.h"
+
 commads cmd_list[]=
 {
     {.cmd="help", .help="print this help menu", .func=shell_help},
@@ -20,10 +21,9 @@ commads cmd_list[]=
     {.cmd="mailbox", .help="get mailbox information", .func=shell_mailbox},
     {.cmd="dtb", .help="dtb test program", .func=shell_dtb},
     {.cmd="cpio", .help="cpio file system demo", .func=shell_cpio},
-    {.cmd="ls", .help="list directory", .func=shell_ls},
+    {.cmd="cpio_ls", .help="list directory", .func=shell_cpio_ls},
     {.cmd="alloc", .help="memory allocation test", .func=shell_alloc},
     {.cmd="user", .help="run syscall.img in thread", .func=shell_user_program}, 
-    {.cmd="user2", .help="run user_program in thread", .func=shell_user_program_2}, 
     {.cmd="timer-start", .help="start timer", .func=shell_start_timer},
     {.cmd="async-puts", .help="uart async send test", .func=shell_async_puts},
     {.cmd="test", .help="test your command here", .func=shell_test},
@@ -31,9 +31,6 @@ commads cmd_list[]=
     {.cmd="events", .help="show all timeout events", .func=shell_events},
     {.cmd="buddy", .help="buddy memory system test", .func=shell_buddy_test},
     {.cmd="dma", .help="dynamic memory allocation test", .func=shell_dma_test},
-    {.cmd="thread", .help="basic thread function testing", .func=shell_thread_test}, 
-    {.cmd="thread-timer", .help="thread scheduling with timer interrrupt", .func=shell_thread_timer_test},
-    {.cmd="run", .help="run user program", .func=shell_run}, 
     {.cmd="vfs_test", .help="test your virtual file system", .func=shell_vfs_test}
 };
 
@@ -47,7 +44,6 @@ void shell_cpio(char* args){
     char *file_content;
 
     // cpio packet: |header|file_name|data|
-
     while(1){
         // read the memory section as header
         cpio_ptr = (cpio_newc_header*)cur_addr;
@@ -225,6 +221,7 @@ void shell_user_program(char* args){
     idle_t = thread_create(0);
     asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
 
+    exec_program_name = args;
     thread_create(exec);
     
     core_timer_enable(SCHEDULE_TVAL);
@@ -233,22 +230,7 @@ void shell_user_program(char* args){
     idle();
 }
 
-void shell_user_program_2(char* args){
-    printf("user 2 program test:\n");
-    idle_t = thread_create(0);
-    asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-    
-    thread_create(exec_my_user_shell);
-    
-    core_timer_enable(SCHEDULE_TVAL);
-    plan_next_interrupt_tval(SCHEDULE_TVAL);
-    enable_interrupt();
-}
-
-
-//void 
-
-void shell_ls(char* args){
+void shell_cpio_ls(char* args){
     cpio_ls();
 }
 
@@ -290,23 +272,6 @@ void shell_settimeout(char* args){
     add_timer(print_callback, timeout_message, timeout_time);
 }
 
-void shell_run(char* args){
-     //print_s(args);
-    uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = 0x30100000; // load your program here
-    uint64_t target_sp = 0x31000000;
-    printf("%x\n", target_sp);
-    //cpio_load_user_program("user_program.img", target_addr);
-    //cpio_load_user_program(args, target_addr);
-    cpio_load_user_program("test_loop", target_addr);
-    //core_timer_enable();
-    printf("dd%x\n", target_sp);
-    asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
-    asm volatile("msr elr_el1, %0" : : "r"(target_addr|KVA)); // link register at 
-    asm volatile("msr sp_el0, %0" : : "r"(target_sp|KVA));
-    asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
-                          // we set the register manually to perform a "jump" or switchning between kernel and user space.
-}
 
 void shell_events(char* args){
     show_all_events();
@@ -320,13 +285,6 @@ void shell_dma_test(char* args){
     dma_test();
 }
 
-void shell_thread_test(char* args){
-    thread_test();
-}
-
-void shell_thread_timer_test(char* args){
-    thread_timer_test();
-}
 
 void shell_dtb(char* args){
     dtb_print(0);

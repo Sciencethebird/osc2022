@@ -13,8 +13,9 @@ struct tmpfs_buf {
   char buffer[TMPFS_BUF_SIZE];
 };
 
+// for file node or file entry
 struct tmpfs_fentry {
-  char name[10];
+  char name[10]; // node name: directory name, file name
   FILE_TYPE type;
   struct vnode* vnode;
   struct tmpfs_fentry* child[MAX_FILES_IN_DIR];

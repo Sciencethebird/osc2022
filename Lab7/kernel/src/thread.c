@@ -8,6 +8,7 @@
 #include "kernel.h"
 #include "mmu.h"
 
+char* exec_program_name;
 
 void thread_init() {
   run_queue.head = 0;
@@ -152,9 +153,6 @@ void kill_zombies() {
       break;
     }
   }
-  //printf("[pid:%d] -> ", run_queue.head->pid);
-  //printf("\n");
-  //enable_interrupt();
 }
 
 thread_info *current_thread() {
@@ -265,79 +263,28 @@ void create_child(thread_info *parent, thread_info *child) {
   // trap_frame->x[33] += user_stack_base_dist;    // sp_el0
 }
 
-
-void foo() {
-  for (int i = 0; i < 4; ++i) {
-    //printf("Thread id: %d, %d\r\n", current_thread()->tid, i);
-    print_s("Thread id: ");
-    print_i(current_thread()->pid);
-    print_s("\r\n");
-    delay(100000000);
-    schedule();
-  }
-  exit();
-  return;
+uint64_t thread_allocate_page(thread_info *thread, uint64_t size) {
+  page_frame *page_frame = buddy_allocate(size); // no malloc since the address from malloc is not aligned to 2^12 (wrong page start)
+  thread->page_frame_ids[thread->page_frame_count++] = page_frame->id;
+  return page_frame->addr;
 }
 
-void foo2(){
-  
-  for (int i = 1; i <= 5; ++i) {
-    uint64_t lr;
-    asm volatile("mov %0, lr" : "=r"(lr));
-
-    printf("link register: %d\n", lr);
-
-    print_s("\r\n");
-    print_i(i);
-    print_s(",foo2 Thread id: ");
-    print_i(current_thread()->pid);
-    print_s("\r\n");
-    delay(1000); // user small number on real RPi
-  }
-  //print_s("\n\n\n\ndone!!!!!!\r\n");
-  exit();
-}
-
-void foo3(){
-  while(1){
-    printf("foo3\n");
-    delay(100000000);
+void thread_free_page(thread_info *thread) {
+  for (int i = 0; i < thread->page_frame_count; i++) {
+    buddy_free(&frames[thread->page_frame_ids[i]]);
   }
 }
 
-//void thread(callback func)
-
-void thread_test() {
-  // I'm not sure why you need following lines
-  thread_info *idle_t = thread_create(foo3);
-  asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-  //for (int i = 0; i < 5; ++i) {
-  //  print_i(i);
-  //  print_s("\r\n");
-  //  thread_create(foo);
-  //}
-  //thread_create(exec);
-  idle();
+void switch_pgd(uint64_t next_pgd) {
+  asm volatile("dsb ish");  // ensure write has completed
+  // we only replace the content in ttbr1_el1 since the ttbr1_el1 will be used for kernel address
+  asm volatile("msr ttbr0_el1, %0"
+               :
+               : "r"(next_pgd));   // switch translation based address.
+  asm volatile("tlbi vmalle1is");  // invalidate all TLB entries
+  asm volatile("dsb ish");         // ensure completion of TLB invalidatation
+  asm volatile("isb");             // clear pipeline
 }
-
-void thread_timer_test(){
-  // scheduling using timer interrupt
-  print_s("timer schedular test\r\n");
-  idle_t = thread_create(0);
-  asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-
-  for (int i = 0; i <5; ++i) {
-    print_i(i);
-    print_s("\r\n");
-    thread_create(foo2);
-  }
-  bp("start timer\r\n");
-  core_timer_enable(SCHEDULE_TVAL);
-  plan_next_interrupt_tval(SCHEDULE_TVAL);
-  enable_interrupt();
-  //idle_thread();
-}
-
 
 void exec() {
   thread_info *cur = get_current();
@@ -370,7 +317,7 @@ void exec() {
     // printf("user stack base: 0x%llx\n", cur->user_stack_base);
   }
 
-  cur->user_program_size = cpio_load_user_program("vm.img", cur->user_program_base);
+  cur->user_program_size = cpio_load_user_program(exec_program_name, cur->user_program_base);
   // map the user program page tables
   for (uint64_t size = 0; size < cur->user_program_size; size += PAGE_SIZE) {
     uint64_t virtual_addr = USER_PROGRAM_BASE + size;
@@ -407,45 +354,4 @@ void exec() {
   asm volatile("msr sp_el0, %0" : : "r"(target_sp));
   asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
                         // we set the register manually to perform a "jump" or switchning between kernel and user space.
-}
-
-
-void exec_my_user_shell() {
-    //print_s(args);
-    uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = KVA + 0x30100000; // load your program here
-    uint64_t target_sp = KVA + 0x31000000;
-
-    cpio_load_user_program("user_shell", target_addr);
-
-    asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
-    asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
-    asm volatile("msr sp_el0, %0" : : "r"(target_sp));
-    asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
-                          // we set the register manually to perform a "jump" or switchning between kernel and user space.
-}
-
-
-//
-uint64_t thread_allocate_page(thread_info *thread, uint64_t size) {
-  page_frame *page_frame = buddy_allocate(size); // no malloc since the address from malloc is not aligned to 2^12 (wrong page start)
-  thread->page_frame_ids[thread->page_frame_count++] = page_frame->id;
-  return page_frame->addr;
-}
-
-void thread_free_page(thread_info *thread) {
-  for (int i = 0; i < thread->page_frame_count; i++) {
-    buddy_free(&frames[thread->page_frame_ids[i]]);
-  }
-}
-
-void switch_pgd(uint64_t next_pgd) {
-  asm volatile("dsb ish");  // ensure write has completed
-  // we only replace the content in ttbr1_el1 since the ttbr1_el1 will be used for kernel address
-  asm volatile("msr ttbr0_el1, %0"
-               :
-               : "r"(next_pgd));   // switch translation based address.
-  asm volatile("tlbi vmalle1is");  // invalidate all TLB entries
-  asm volatile("dsb ish");         // ensure completion of TLB invalidatation
-  asm volatile("isb");             // clear pipeline
 }
