@@ -154,6 +154,29 @@ static int nand_erase(int block_index)
 int is_valid_lba(unsigned int lba){
     return ( lba != INVALID_LBA ) && ( lba != STALE_LBA );
 }
+void erase_free_block(){
+    for(int i = 0; i< PHYSICAL_NAND_NUM; i++)
+    {
+        if(i == curr_pca.fields.nand)
+        {
+            fprintf(debug, "[GC] skip scanning current pca block, " 
+                           "when finding dirty block, curr block = %d\n", i);   
+            continue;
+        }
+        int stale_count = 0;
+        for(int j = 0; j<PAGE_PER_BLOCK; j++)
+        {
+            if(P2L[i*10+j] == STALE_LBA)
+            {
+                stale_count++;
+            }
+        }
+        if(stale_count == PAGE_PER_BLOCK && valid_count[i] != FREE_BLOCK){
+            fprintf(debug, "[GC] free block detected! erasing and releasing...");
+            nand_erase(i);
+        }
+    }
+}
 
 void garbage_collection2(){
 
@@ -204,7 +227,7 @@ void garbage_collection2(){
     // only run gc when there's just enough room 
     //  for moving least valid pages in the dirty block
     int least_valid_count = PAGE_PER_BLOCK - most_stale_count;
-    if(curr_pca.fields.lba+1 + least_valid_count <PAGE_PER_BLOCK) {
+    if(curr_pca.fields.lba + 1 + least_valid_count < PAGE_PER_BLOCK) {
        fprintf(debug, "[GC] no need for gc yet...\n"); 
        return;
     } else if (curr_pca.fields.lba+1 + least_valid_count > PAGE_PER_BLOCK) {
@@ -555,7 +578,7 @@ static int ftl_write(const char* buf, size_t lba_range, size_t lba)
             fprintf(debug,"[ftl_write] marking stale at stale_pca: [%d, %d]\n", 
                     stale_pca.fields.nand, stale_pca.fields.lba);
 
-            P2L[stale_pca.fields.nand*10 + stale_pca.fields.lba] = STALE_LBA; // mark this block as free to use?
+            P2L[stale_pca.fields.nand*10 + stale_pca.fields.lba] = STALE_LBA; 
         }
         
         // gc code attept
@@ -703,6 +726,7 @@ static int ssd_do_write(const char* buf, size_t size, off_t offset)
         // TODO
         ftl_read(tmp_buf+(idx*512), tmp_lba+idx);
     }
+ 
     memcpy(tmp_buf+tmp_offset, buf, size);
 
     ftl_write(tmp_buf, tmp_lba_range, tmp_lba);
@@ -788,6 +812,7 @@ static const struct fuse_operations ssd_oper =
     .write          = ssd_write,
     .ioctl          = ssd_ioctl,
 };
+
 int main(int argc, char* argv[])
 {
     int idx;

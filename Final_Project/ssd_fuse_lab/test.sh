@@ -49,7 +49,7 @@ case "$1" in
     "test4")
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
         cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 > ${TEMP}
-        for i in $(seq 0 400)
+        for i in $(seq 0 1000)
         do
             skip_b=$(shuf -i 10240-20480 -n 1)
             seek_b=$(shuf -i 10240-20480 -n 1)
@@ -76,7 +76,17 @@ case "$1" in
         
         #dd if="t1.txt" skip=0 of=${GOLDEN} iflag=skip_bytes oflag=seek_bytes seek=123 bs=1024 count=1 conv=notrunc 2> /dev/null
         #dd if="t1.txt" skip=0 of=${SSD_FILE} iflag=skip_bytes oflag=seek_bytes seek=123 bs=1024 count=1 conv=notrunc 2> /dev/null
-    
+    "test5")
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 | tee ${SSD_FILE} > ${GOLDEN} 2> /dev/null
+        cat /dev/urandom | tr -dc '[:alpha:][:digit:]' | head -c 51200 > ${TEMP}
+        skip_b=$(shuf -i 0-50176 -n 1)
+        seek_b=$(shuf -i 0-50176 -n 1)
+        for i in $(seq 0 100)
+        do
+            dd if=${TEMP} iflag=skip_bytes skip=${skip_b} of=${GOLDEN} oflag=seek_bytes seek=${seek_b} bs=1024 count=1 conv=notrunc 2> /dev/null
+            dd if=${TEMP} iflag=skip_bytes skip=${skip_b} of=${SSD_FILE} oflag=seek_bytes seek=${seek_b} bs=1024 count=1 conv=notrunc 2> /dev/null
+        done
+        ;;
     *)
         printf "Usage: sh test.sh test_pattern\n"
         printf "\n"
