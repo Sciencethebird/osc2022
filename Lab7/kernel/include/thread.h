@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
+#include "vfs.h"
 
 // thread process setting
 #define STACK_SIZE 4096
@@ -19,6 +20,12 @@
 // scheduling constant
 #define SCHEDULE_TVAL 50000000 >> 5
 #define SCHEDULE_TVAL_TEST 62500000 // 1 sec
+
+// file system
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#define FD_MAX 256
 
 int from_kernel;
 
@@ -47,6 +54,11 @@ typedef struct {
   uint64_t sp;
 } cpu_context_full;
 
+// FD table for thread
+typedef struct {
+  struct file *files[FD_MAX];
+} fd_table_t;
+
 typedef struct thread_info {
   //cpu_context context;
   cpu_context context;
@@ -62,7 +74,7 @@ typedef struct thread_info {
   uint64_t *pgd;
   uint32_t page_frame_ids[MAX_PAGE_FRAME_PER_THREAD];
   uint32_t page_frame_count;
-  
+  fd_table_t fd_table;
   struct thread_info *next;
 } thread_info;
 
@@ -82,6 +94,8 @@ typedef struct {
   uint64_t elr_el1;
   uint64_t sp_el0;
 } trap_frame_t;
+
+
 
 // thread API
 void thread_init();
@@ -112,3 +126,9 @@ void exec(); // calls syscall.img
 uint64_t thread_allocate_page(thread_info *thread, uint64_t size);
 void thread_free_page(thread_info *thread);
 void switch_pgd(uint64_t next_pgd);
+
+// file system
+struct file *thread_get_file(int fd);
+//int thread_get_fd(struct file *file);
+int thread_register_fd(struct file *file);
+int thread_clear_fd(int fd);

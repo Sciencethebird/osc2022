@@ -29,3 +29,4 @@ typedef struct {
 void cpio_ls();
 void cpio_cat(char *pathname_to_cat);
 int cpio_load_user_program(char *target_program, uint64_t target_addr);
+void cpio_populate_rootfs();

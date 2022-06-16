@@ -251,7 +251,7 @@ void shell_async_puts(char* args){
 }
 
 void shell_test(char* args){
-    exec();
+    //exec();
 }
 
 void shell_settimeout(char* args){

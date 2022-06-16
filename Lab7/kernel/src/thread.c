@@ -35,7 +35,7 @@ thread_info *thread_create(void (*func)()) {
   thread->context.fp = thread->kernel_stack_base + STACK_SIZE;
   thread->context.lr = (uint64_t)func;
   thread->context.sp = thread->kernel_stack_base + STACK_SIZE;
-  //for (int i = 0; i < FD_MAX; ++i) thread->fd_table.files[i] = 0;
+  for (int i = 0; i < FD_MAX; ++i) thread->fd_table.files[i] = 0;
 
   run_queue_push(thread);
   return thread;
@@ -285,6 +285,32 @@ void switch_pgd(uint64_t next_pgd) {
   asm volatile("dsb ish");         // ensure completion of TLB invalidatation
   asm volatile("isb");             // clear pipeline
 }
+// file system related
+struct file *thread_get_file(int fd) {
+  thread_info *cur = get_current();
+  return cur->fd_table.files[fd];
+}
+
+int thread_register_fd(struct file *file) {
+  if (file == 0) return -1;
+  thread_info *cur = get_current();
+  // find next available fd
+  for (int fd = 3; fd < FD_MAX; ++fd) {
+    if (cur->fd_table.files[fd] == 0) {
+      cur->fd_table.files[fd] = file;
+      return fd;
+    }
+  }
+  return -1;
+}
+
+int thread_clear_fd(int fd) {
+  if (fd < 0 || fd >= FD_MAX) return -1;
+  thread_info *cur = get_current();
+  cur->fd_table.files[fd] = 0;
+  return 1;
+}
+
 
 void exec() {
   thread_info *cur = get_current();

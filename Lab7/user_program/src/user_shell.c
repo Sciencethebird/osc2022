@@ -1,4 +1,6 @@
-#include "start.h"
+//#include "start.h"
+#include "utils.h"
+#include "syscall.h"
 #include "printf.h"
 #define BUF_SIZE 100
 

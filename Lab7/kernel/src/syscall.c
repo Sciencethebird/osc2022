@@ -45,7 +45,9 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
     case SYS_KILL:
       sys_kill(trap_frame);
       break;
-    /*
+    case SYS_LIST:
+      sys_list(trap_frame);
+      break;
     case SYS_OPEN:
       sys_open(trap_frame);
       break;
@@ -58,12 +60,10 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
     case SYS_READ:
       sys_read(trap_frame);
       break;
-    case SYS_LIST:
-      sys_list(trap_frame);
-      break;
     case SYS_MKDIR:
       sys_mkdir(trap_frame);
       break;
+    /*
     case SYS_CHDIR:
       sys_chdir(trap_frame);
       break;
@@ -74,6 +74,8 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
       sys_umount(trap_frame);
       break;
     */
+    default:
+      printf("[ERROR] unhandled syscall number!!!\n");
   }
 }
 
@@ -148,55 +150,54 @@ void sys_kill(trap_frame_t *trap_frame){
   kill(pid);
 }
 
-//void sys_open(trap_frame_t *trap_frame) {
-//  const char *pathname = (const char *)trap_frame->x[0];
-//  int flags = (int)trap_frame->x[1];
-//  struct file *file = vfs_open(pathname, flags);
-//  int fd = thread_register_fd(file);
-//  trap_frame->x[0] = fd;
-//}
-//
-//void sys_close(trap_frame_t *trap_frame) {
-//  int fd = (int)trap_frame->x[0];
-//  struct file *file = thread_get_file(fd);
-//  thread_clear_fd(fd);
-//  int result = vfs_close(file);
-//  trap_frame->x[0] = result;
-//}
-//
-//void sys_write(trap_frame_t *trap_frame) {
-//  int fd = (int)trap_frame->x[0];
-//  struct file *file = thread_get_file(fd);
-//  const void *buf = (const void *)trap_frame->x[1];
-//  size_t len = (size_t)trap_frame->x[2];
-//  size_t size = vfs_write(file, buf, len);
-//  trap_frame->x[0] = size;
-//}
-//
-//void sys_read(trap_frame_t *trap_frame) {
-//  int fd = (int)trap_frame->x[0];
-//  struct file *file = thread_get_file(fd);
-//  void *buf = (void *)trap_frame->x[1];
-//  size_t len = (size_t)trap_frame->x[2];
-//  size_t size = vfs_read(file, buf, len);
-//  trap_frame->x[0] = size;
-//}
-//
-//void sys_list(trap_frame_t *trap_frame) {
-//  int fd = (int)trap_frame->x[0];
-//  struct file *file = thread_get_file(fd);
-//  void *buf = (void *)trap_frame->x[1];
-//  int index = (int)trap_frame->x[2];
-//  int size = vfs_list(file, buf, index);
-//  trap_frame->x[0] = size;
-//}
+void sys_list(trap_frame_t *trap_frame) {
+  char* pathname = (int)trap_frame->x[0];
+  vfs_list(pathname);
+}
 
-//void sys_mkdir(trap_frame_t *trap_frame) {
-//  const char *pathname = (const char *)trap_frame->x[0];
-//  int result = vfs_mkdir(pathname);
-//  trap_frame->x[0] = result;
-//}
-//
+void sys_open(trap_frame_t *trap_frame) {
+  
+  const char *pathname = (const char *)trap_frame->x[0];
+  
+  int flags = (int)trap_frame->x[1];
+  printf("[sys_open] called, flag: %d, dir: %s\n", flags, pathname);
+  struct file *file = vfs_open(pathname, flags);
+  int fd = thread_register_fd(file);
+  trap_frame->x[0] = fd;
+}
+
+void sys_close(trap_frame_t *trap_frame) {
+  int fd = (int)trap_frame->x[0];
+  struct file *file = thread_get_file(fd);
+  thread_clear_fd(fd);
+  int result = vfs_close(file);
+  trap_frame->x[0] = result;
+}
+
+void sys_write(trap_frame_t *trap_frame) {
+  int fd = (int)trap_frame->x[0];
+  struct file *file = thread_get_file(fd);
+  const void *buf = (const void *)trap_frame->x[1];
+  size_t len = (size_t)trap_frame->x[2];
+  size_t size = vfs_write(file, buf, len);
+  trap_frame->x[0] = size;
+}
+
+void sys_read(trap_frame_t *trap_frame) {
+  int fd = (int)trap_frame->x[0];
+  struct file *file = thread_get_file(fd);
+  void *buf = (void *)trap_frame->x[1];
+  size_t len = (size_t)trap_frame->x[2];
+  size_t size = vfs_read(file, buf, len);
+  trap_frame->x[0] = size;
+}
+
+void sys_mkdir(trap_frame_t *trap_frame) {
+  const char *pathname = (const char *)trap_frame->x[0];
+  int result = vfs_mkdir(pathname);
+  trap_frame->x[0] = result;
+}
+
 //void sys_chdir(trap_frame_t *trap_frame) {
 //  const char *pathname = (const char *)trap_frame->x[0];
 //  int result = vfs_chdir(pathname);

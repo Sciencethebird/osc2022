@@ -232,7 +232,7 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
 #endif
 
 // my custom implementation of _putchar
-#include "start.h"
+#include "utils.h"
 void _putchar(char character) {
   if (character == '\n') print_c('\r');
   print_c(character);
