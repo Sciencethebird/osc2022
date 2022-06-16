@@ -18,20 +18,23 @@ commads cmd_list[]=
     {.cmd="help", .help="print this help menu", .func=shell_help},
     {.cmd="hello", .help="print Hello World!", .func=shell_hello},
     {.cmd="reboot", .help="reboot the device", .func=shell_reboot},
-    {.cmd="mailbox", .help="get mailbox information", .func=shell_mailbox},
-    {.cmd="dtb", .help="dtb test program", .func=shell_dtb},
-    {.cmd="cpio", .help="cpio file system demo", .func=shell_cpio},
-    {.cmd="cpio_ls", .help="list directory", .func=shell_cpio_ls},
-    {.cmd="alloc", .help="memory allocation test", .func=shell_alloc},
-    {.cmd="user", .help="run syscall.img in thread", .func=shell_user_program}, 
-    {.cmd="timer-start", .help="start timer", .func=shell_start_timer},
     {.cmd="async-puts", .help="uart async send test", .func=shell_async_puts},
-    {.cmd="test", .help="test your command here", .func=shell_test},
+    
     {.cmd="timeout", .help="setTimeout MESSAGE SECONDS", .func=shell_settimeout},
     {.cmd="events", .help="show all timeout events", .func=shell_events},
+
+    {.cmd="mailbox", .help="get mailbox information", .func=shell_mailbox},
+    {.cmd="dtb", .help="dtb test program", .func=shell_dtb},
+
+    {.cmd="cpio", .help="cpio file system demo", .func=shell_cpio},
+    {.cmd="cpio_ls", .help="list directory", .func=shell_cpio_ls},
+
+    {.cmd="user", .help="run syscall.img in thread", .func=shell_user_program}, 
     {.cmd="buddy", .help="buddy memory system test", .func=shell_buddy_test},
     {.cmd="dma", .help="dynamic memory allocation test", .func=shell_dma_test},
-    {.cmd="vfs_test", .help="test your virtual file system", .func=shell_vfs_test}
+    {.cmd="alloc", .help="memory allocation test", .func=shell_alloc},
+    {.cmd="vfs_test", .help="test your virtual file system", .func=shell_vfs_test},
+    {.cmd="test", .help="test your command here", .func=shell_test}
 };
 
 int cmd_num = sizeof(cmd_list)/sizeof(commads);
@@ -96,8 +99,13 @@ void shell_help(char* args){
 
     int cmd_len = sizeof(cmd_list)/sizeof(commads);
     for(int cmd_idx=0; cmd_idx<cmd_len; cmd_idx+=1){
+        
         uart_puts(cmd_list[cmd_idx].cmd);
-        uart_puts("\t\t");
+        if(strlen(cmd_list[cmd_idx].cmd)>7){
+            uart_puts("\t");
+        } else {
+            uart_puts("\t\t");
+        }
         uart_puts(cmd_list[cmd_idx].help);
         uart_puts("\r\n");
     }
@@ -217,7 +225,7 @@ void shell_alloc(char* args){
 }
 
 void shell_user_program(char* args){
-    printf("user program test:\n");
+    printf("running user program [%s]\n", args);
     idle_t = thread_create(0);
     asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
 
@@ -232,11 +240,6 @@ void shell_user_program(char* args){
 
 void shell_cpio_ls(char* args){
     cpio_ls();
-}
-
-void shell_start_timer(char* args){
-    uart_puts("timer enable\n");
-    core_timer_enable(-1);
 }
 
 void shell_async_puts(char* args){
@@ -284,7 +287,6 @@ void shell_buddy_test(char* args){
 void shell_dma_test(char* args){
     dma_test();
 }
-
 
 void shell_dtb(char* args){
     dtb_print(0);

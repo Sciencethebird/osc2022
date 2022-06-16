@@ -17,7 +17,6 @@ void shell_cpio(char* args);
 void shell_alloc(char* args);
 void shell_user_program(char* args);
 void shell_cpio_ls(char* args);
-void shell_start_timer(char* args);
 void shell_async_puts(char* args);
 void shell_test(char* args);
 void shell_settimeout(char* args);

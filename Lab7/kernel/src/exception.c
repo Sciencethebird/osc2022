@@ -9,7 +9,7 @@
 #include "utils.h"
 #include "mmu.h"
 #include "thread.h"
-
+#include "syscall.h"
 
 void enable_interrupt() { asm volatile("msr DAIFClr, 0xf"); }
 void disable_interrupt() { asm volatile("msr DAIFSet, 0xf"); }
@@ -52,78 +52,11 @@ void lower_64_EL_sync_handler(uint64_t sp){
   if(ec == 0b010101){
     // according the lab spec, the number of the systme call is store in x8
     trap_frame_t *trap_frame = (trap_frame_t *)sp;
-    int sys_call_num;
-    asm volatile("mov %0, x8" : "=r"(sys_call_num));
-    //printf("sys_call_num = %d\n", sys_call_num);
 
-    if(sys_call_num == 0){ // int getpid()
+    int syscall_number;
+    asm volatile("mov %0, x8" : "=r"(syscall_number));
 
-      uint64_t pid = get_current()->pid;
-      trap_frame->x[0]=pid;
-
-    }else if(sys_call_num == 1){ // uart_read(char buf[], size_t size)
-
-      disable_uart_interrupt(); // I'm not sure why
-      char *str = (char *)(trap_frame->x[0]);
-      uint32_t size = (uint32_t)(trap_frame->x[1]);
-      
-      enable_interrupt();
-      size = uart_gets(str, size);
-
-      trap_frame->x[0] = size;
-      
-    }else if(sys_call_num == 2){ // uart_write(char buf[], size_t size)
-
-      // print_s("uart_write called\r\n");
-      disable_uart_interrupt();
-      char* str = (char*) trap_frame->x[0];
-      uint32_t size = (uint32_t)(trap_frame->x[1]);
-
-      uart_write(str, size);  
-
-    }else if(sys_call_num == 3){
-
-      print_s("exec called\r\n");
-      exec();
-
-    }else if(sys_call_num == 4){
-
-      print_s("fork called\r\n");
-      fork(sp);
-
-    }else if(sys_call_num == 5){
-
-      print_s("exit called\r\n");
-      exit();
-
-    }else if(sys_call_num == 6){
-
-      print_s("mbox_call called\r\n");
-      
-      unsigned char ch = (unsigned char) trap_frame->x[0];
-      unsigned int *mbox_user_VA = (unsigned int*)(trap_frame->x[1]);
-
-      // manual address translation： user VA --walk--> user PA --PA2VA--> kernel PA --> 
-      unsigned int *mbox_user_PA = user_VA2PA(get_current(), (uint64_t)mbox_user_VA);
-      unsigned int *mbox_kernel_VA = (unsigned int *) PA2VA(mbox_user_PA);
-      printf("mbox ch: %d, *mbox: %d\n", ch, mbox_kernel_VA);
-
-      int valid = mbox_call_user(ch, mbox_kernel_VA);
-
-      trap_frame->x[0] = valid;
-      // printf("mbox call valid: %d\n", valid);
-
-    }else if(sys_call_num == 7){
-      
-      print_s("kill called\r\n");
-      int pid = trap_frame->x[0];
-      kill(pid);
-
-    }else{
-
-      print_s("unhandled system call number\r\n");
-
-    }
+    syscall_handler(syscall_number, trap_frame);
   }
   //printf("pid %d done exception handling\n", get_current());
 }

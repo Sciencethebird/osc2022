@@ -76,7 +76,6 @@ thread_info *idle_t;
 
 extern thread_info *get_current();
 extern void switch_to(uint64_t, uint64_t);
-
 typedef struct {
   uint64_t x[31]; // x0 to x30
   uint64_t spsr_el1;
@@ -84,12 +83,10 @@ typedef struct {
   uint64_t sp_el0;
 } trap_frame_t;
 
-
 // thread API
 void thread_init();
 thread_info *thread_create(void (*func)());
 thread_info *current_thread();
-
 
 // thread API utils
 void run_queue_push(thread_info *thread);
@@ -100,26 +97,16 @@ void exit();
 void kill(int pid);
 void kill_zombies();
 
-
 // fork 
 void fork(uint64_t sp);
 void handle_fork();
 void create_child(thread_info *parent, thread_info *child);
 
-
 // timer interrupt schedular
 void timer_schedular_handler();
 
-
-// thread testing functions
-void foo();
-void foo2();
-
-
 // exec
 void exec(); // calls syscall.img
-void exec_my_user_shell(); // calls user_shell
-
 
 //virtual memory
 uint64_t thread_allocate_page(thread_info *thread, uint64_t size);
