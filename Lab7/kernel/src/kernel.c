@@ -4,7 +4,7 @@
 #include "string.h"
 #include "mini_uart.h"
 #include "exception.h"
-#include "memory.h"
+#include "alloc.h"
 #include "commands.h"
 #include "cpio.h"
 #include "timer.h"

@@ -88,7 +88,7 @@ void schedule() {
   
   switch_pgd((uint64_t)(run_queue.head->pgd));
   enable_interrupt();
-  switch_to((uint64_t)get_current(), run_queue.head);
+  switch_to((uint64_t)get_current(), (uint64_t)run_queue.head);
 
   //uint64_t sp;
   //asm volatile("mov %0, sp\n" : "=r"(sp) :);

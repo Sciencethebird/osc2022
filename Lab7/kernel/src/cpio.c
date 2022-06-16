@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "string.h"
 #include "printf.h"
+#include "io.h"
 #include "cpio.h"
 #include "utils.h"
 #include "mini_uart.h"
@@ -20,13 +21,13 @@ void cpio_ls() {
 
     // the end is indicated by a special record with pathname "TRAILER!!!"
     if (strcmp(pathname, CPIO_END) == 0) break;
-    print_s(pathname);
-    print_s(" ");
+    printf(pathname);
+    printf(" ");
 
     ptr = align_up(ptr + namesize, 4);
     ptr = align_up(ptr + filesize, 4);
   }
-  print_s("\n");
+  printf("\n");
 }
 
 void cpio_cat(char *pathname_to_cat) {

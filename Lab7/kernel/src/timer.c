@@ -1,6 +1,6 @@
 #include "timer.h"
 #include "thread.h"
-#include "memory.h"
+#include "alloc.h"
 #include "io.h"
 #include "utils.h"
 

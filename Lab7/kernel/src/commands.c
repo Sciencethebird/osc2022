@@ -6,12 +6,14 @@
 #include "mini_uart.h"
 #include "alloc.h"
 #include "commands.h"
+#include "exception.h"
 #include "cpio.h"
 #include "timer.h"
 #include "thread.h"
 #include "dtb.h"
 #include "printf.h"
 #include "mmu.h"
+#include "vfs.h"
 
 commads cmd_list[]=
 {
@@ -197,7 +199,7 @@ void shell_mailbox(char* args){
 
 void shell_alloc(char* args){
     uart_puts("My Heap starting address in bytes is: ");
-    uart_hex(HEAP_START);
+    //uart_hex(HEAP_START);
     uart_puts("\r\n");
 
     uart_puts("dtb: ");

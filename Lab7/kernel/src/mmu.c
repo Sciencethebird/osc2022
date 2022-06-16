@@ -91,7 +91,7 @@ void update_page_table(thread_info *thread, uint64_t virtual_addr,
 uint64_t user_VA2PA(thread_info *thread, uint64_t user_virtual_addr){
   if (thread->pgd == 0) {
     printf("Invalid PGD!!\n");
-    return;
+    return -1;
   }
 
   uint32_t index[4] = {
