@@ -2,7 +2,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
-
+#include "alloc.h"
+#include "vfs.h"
 // thread process setting
 #define STACK_SIZE 4096
 #define USER_PROGRAM_BASE 0x30000000
@@ -16,6 +17,15 @@
 // scheduling constant
 #define SCHEDULE_TVAL 50000000 >> 5
 #define SCHEDULE_TVAL_TEST 62500000 // 1 sec
+
+#define FD_MAX 256
+
+extern char* exec_program_name;
+
+// FD table for thread
+typedef struct {
+  struct file *files[FD_MAX];
+} fd_table_t;
 
 int from_kernel;
 typedef struct {
@@ -52,6 +62,8 @@ typedef struct thread_info {
   uint64_t user_stack_base;
   uint64_t user_program_base;
   uint32_t user_program_size;
+
+  fd_table_t fd_table;
   struct thread_info *next;
 } thread_info;
 
@@ -102,13 +114,12 @@ void create_child(thread_info *parent, thread_info *child);
 // timer interrupt schedular
 void timer_schedular_handler();
 
-// thread testing functions
-void foo();
-void foo2();
-void thread_test();
-void thread_timer_test();
-
 
 // exec
 void exec(); // calls syscall.img
-void exec_my_user_shell(); // calls user_shell
+
+// file system
+struct file *thread_get_file(int fd);
+//int thread_get_fd(struct file *file);
+int thread_register_fd(struct file *file);
+int thread_clear_fd(int fd);

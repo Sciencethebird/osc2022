@@ -1,7 +1,6 @@
 #pragma once
 
 #include "gpio.h"
-
 #define CORE0_IRQ_SOURCE ((volatile unsigned int *)(0x40000060))
 #define GPU_IRQ (1 << 8)
 #define CNTPNS_IRQ (1 << 1)

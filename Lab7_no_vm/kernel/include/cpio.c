@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include "string.h"
-#include "alloc.h"
 #include "printf.h"
 #include "io.h"
 #include "cpio.h"
@@ -89,7 +88,7 @@ int cpio_load_user_program(char *target_program, uint64_t target_addr) {
     }
     ptr = align_up(ptr + filesize, 4);
   }
-  printf("[cpio_load_user_program] No such file\n");
+  printf("No such file\n");
   return 0;
 }
 
@@ -150,8 +149,10 @@ void cpiofs_set_fentry(struct cpiofs_fentry* fentry, const char* component_name,
       fentry->child[i]->type = FILE_NONE;
       fentry->child[i]->parent_vnode = vnode;
     }
-    fentry->file->size = 0;
+    fentry->file->size = 4096;
     
+  } else if (fentry->type == FILE_REGULAR) {
+    fentry->file->size = 0;
   }
 }
 
@@ -188,13 +189,17 @@ int cpiofs_setup_mount(struct filesystem* fs, struct mount* mount) {
 
     
     ptr = align_up(ptr + namesize, 4);
-
-    // get cpio file size and file location ptr.
     struct cpiofs_file* file = (struct cpiofs_file*)malloc(sizeof(struct cpiofs_file));
     file->size = filesize;
-    file->file_location = (char*) ptr;
+    file->file_location = ptr;
     _cpiofs_create(mount->root, pathname, file, FILE_REGULAR);
-
+    //if (filesize > 0) {
+    //  struct file *file = vfs_open(pathname, O_CREAT);
+    //  if (file) {
+    //    vfs_write(file, (const char *)ptr, filesize);
+    //    vfs_close(file);
+    //  }
+    //}
     ptr = align_up(ptr + filesize, 4);
   }
 
@@ -203,7 +208,7 @@ int cpiofs_setup_mount(struct filesystem* fs, struct mount* mount) {
 
 int cpiofs_lookup(struct vnode* dir_node, struct vnode** target,
                  const char* component_name) {
-  //printf("[cpiofs_lookup] %s\n", component_name);
+  printf("[cpiofs_lookup] %s\n", component_name);
   struct cpiofs_fentry* fentry = (struct cpiofs_fentry*)dir_node->internal;
   if (fentry->type != FILE_DIRECTORY) return 0;
 
@@ -233,8 +238,21 @@ int cpiofs_lookup(struct vnode* dir_node, struct vnode** target,
 
 int cpiofs_create(struct vnode* dir_node, struct vnode** target,
                  const char* component_name, FILE_TYPE type) {
-
-  printf("[cpiofs_create] forbidden operation: creating a file on a read-only filesystem.\n");
+  //for (int i = 0; i < MAX_FILES_IN_CPIO; i++) {
+  //  struct cpiofs_fentry* fentry =
+  //      ((struct cpiofs_fentry*)dir_node->internal)->child[i];
+  //  if (fentry->type == FILE_NONE) {
+  //    struct vnode* vnode = (struct vnode*)malloc(sizeof(struct vnode));
+  //    vnode->mount = 0;
+  //    vnode->v_ops = dir_node->v_ops;
+  //    vnode->f_ops = dir_node->f_ops;
+  //    vnode->internal = fentry;
+  //    cpiofs_set_fentry(fentry, component_name, type, vnode);
+  //    *target = fentry->vnode;
+  //    return 1;
+  //  }
+  //}
+  printf("[cpiofs_create] ERROR: creating a file on a read-only filesystem!\n");
   return -1;
 }
 
@@ -265,8 +283,15 @@ int cpiofs_set_parent(struct vnode* child_node, struct vnode* parent_vnode) {
 }
 
 int cpiofs_write(struct file* file, const void* buf, size_t len) {
-
-  printf("[cpiofs_write] forbidden operation: writing a file on a read-only filesystem!\n");
+  //struct cpiofs_fentry* fentry = (struct cpiofs_fentry*)file->vnode->internal;
+  //for (size_t i = 0; i < len; i++) {
+  //  fentry->buf->buffer[file->f_pos++] = ((char*)buf)[i];
+  //  if (fentry->buf->size < file->f_pos) {
+  //    fentry->buf->size = file->f_pos;
+  //  }
+  //}
+  //return len;
+  printf("[cpiofs_create] ERROR: writing a file on a read-only filesystem!\n");
   return -1;
 }
 
@@ -281,7 +306,7 @@ int cpiofs_read(struct file* file, void* buf, size_t len) {
     }
   }
 
-  return read_len;
+  return 0;
 }
 
 void cpiofs_list(struct vnode* dir_node) {

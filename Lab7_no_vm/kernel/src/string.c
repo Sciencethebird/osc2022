@@ -56,6 +56,28 @@ char* itoa(int64_t val, int base){
     return &buf[i + 1];
 }
 
+char *strtok(char *s, const char delim) {
+  static char *pos;
+  char *ret;
+  if (s) pos = s;
+
+  if (*pos == '\0') return 0;
+  // skip leading
+  while (*pos == delim) {
+    pos++;
+  }
+
+  ret = pos;
+  while (*pos != delim && *pos != '\0') {
+    pos++;
+  }
+  if (*pos != '\0') {
+    *pos = '\0';
+    pos++;
+  }
+  return ret;
+}
+
 int strcmp(const char *p1, const char *p2) {
   const unsigned char *s1 = (const unsigned char *)p1;
   const unsigned char *s2 = (const unsigned char *)p2;
@@ -66,4 +88,46 @@ int strcmp(const char *p1, const char *p2) {
     if (c1 == '\0') return c1 - c2;
   } while (c1 == c2);
   return c1 - c2;
+  // returns 0 if two strings are identical
+}
+
+char *strcpy(char *dst, const char *src) {
+  // return if no memory is allocated to the destination
+  if (dst == 0) return 0;
+
+  char *ptr = dst;
+  while (*src != '\0') {
+    *dst = *src;
+    dst++;
+    src++;
+  }
+  *dst = '\0';
+  return ptr;
+}
+
+char *split_last(char *str, char delim) {
+  char *mid = 0;
+  while (*str) {
+    if (*str == delim) {
+      mid = str;
+    }
+    str++;
+  }
+  if (mid) {
+    *mid = '\0';
+    mid++;
+  }
+  return mid;
+}
+
+void strcat(char *to, const char *from) {
+  while (*to) {
+    to++;
+  }
+  while (*from) {
+    *to = *from;
+    to++;
+    from++;
+  }
+  *to = '\0';
 }

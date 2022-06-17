@@ -20,7 +20,7 @@ $(BUILD_DIR)/%_c.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%_s.o: $(SRC_DIR)/%.S
-	$(CC) $(ASMFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 C_FILES = $(wildcard $(SRC_DIR)/*.c)
 ASM_FILES = $(wildcard $(SRC_DIR)/*.S)
@@ -34,9 +34,17 @@ kernel8.img: kernel8.elf
 	$(OBJCOPY) $(OBJCOPYFLAGS) $(BUILD_DIR)/kernel8.elf $(BUILD_DIR)/kernel8.img
 
 run:
+	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display none -serial null -serial stdio \
+		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
+run-display:
 	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display gtk -serial null -serial stdio \
 		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
-
+debug:
+	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display none -s -S -serial null -serial stdio \
+		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
 boot:
 	cp ../bootloader/bootloader.img .
 	qemu-system-aarch64 -M raspi3 -kernel bootloader.img -serial null -serial pty -initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
+
+#file build/kernel8.elf
+#target remote localhost:1234

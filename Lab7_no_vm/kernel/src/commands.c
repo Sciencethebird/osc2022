@@ -4,49 +4,53 @@
 #include "string.h"
 #include "io.h"
 #include "mini_uart.h"
-#include "memory.h"
+#include "alloc.h"
 #include "commands.h"
+#include "exception.h"
 #include "cpio.h"
 #include "timer.h"
 #include "thread.h"
 #include "dtb.h"
 #include "printf.h"
+#include "vfs.h"
 
 commads cmd_list[]=
 {
     {.cmd="help", .help="print this help menu", .func=shell_help},
     {.cmd="hello", .help="print Hello World!", .func=shell_hello},
     {.cmd="reboot", .help="reboot the device", .func=shell_reboot},
-    {.cmd="mailbox", .help="get mailbox information", .func=shell_mailbox},
-    {.cmd="dtb", .help="dtb test program", .func=shell_dtb},
-    {.cmd="cpio", .help="cpio file system demo", .func=shell_cpio},
-    {.cmd="ls", .help="list directory", .func=shell_ls},
-    {.cmd="alloc", .help="memory allocation test", .func=shell_alloc},
-    {.cmd="user", .help="run syscall.img in thread", .func=shell_user_program}, 
-    {.cmd="user2", .help="run user_program in thread", .func=shell_user_program_2}, 
-    {.cmd="timer-start", .help="start timer", .func=shell_start_timer},
     {.cmd="async-puts", .help="uart async send test", .func=shell_async_puts},
-    {.cmd="test", .help="test your command here", .func=shell_test},
+    
     {.cmd="timeout", .help="setTimeout MESSAGE SECONDS", .func=shell_settimeout},
     {.cmd="events", .help="show all timeout events", .func=shell_events},
+
+    {.cmd="mailbox", .help="get mailbox information", .func=shell_mailbox},
+    {.cmd="dtb", .help="dtb test program", .func=shell_dtb},
+
+    {.cmd="cpio", .help="cpio file system demo", .func=shell_cpio},
+    {.cmd="cpio_ls", .help="list directory", .func=shell_cpio_ls},
+
+    {.cmd="user", .help="run user program in thread", .func=shell_user_program}, 
     {.cmd="buddy", .help="buddy memory system test", .func=shell_buddy_test},
     {.cmd="dma", .help="dynamic memory allocation test", .func=shell_dma_test},
-    {.cmd="thread", .help="basic thread function testing", .func=shell_thread_test}, 
-    {.cmd="thread-timer", .help="thread scheduling with timer interrrupt", .func=shell_thread_timer_test},
-    {.cmd="run", .help="run user program", .func=shell_run}
+    {.cmd="alloc", .help="memory allocation test", .func=shell_alloc},
+    {.cmd="vfs_test", .help="test your virtual file system", .func=shell_vfs_test},
+    {.cmd="ls", .help="list directory (vfs)", .func=shell_ls},
+    {.cmd="cd", .help="change directory (vfs)", .func=shell_chdir},
+    {.cmd="cat", .help="echo file content", .func=shell_cat},
+    {.cmd="test", .help="test your command here", .func=shell_test}
 };
 
 int cmd_num = sizeof(cmd_list)/sizeof(commads);
 
 void shell_cpio(char* args){
-    uint64_t cur_addr = CPIO_LOC;
+    uint64_t cur_addr = RAMFS_ADDR;
     cpio_newc_header* cpio_ptr;
     uint64_t name_size, file_size;
     char *file_name;
     char *file_content;
 
     // cpio packet: |header|file_name|data|
-
     while(1){
         // read the memory section as header
         cpio_ptr = (cpio_newc_header*)cur_addr;
@@ -99,8 +103,13 @@ void shell_help(char* args){
 
     int cmd_len = sizeof(cmd_list)/sizeof(commads);
     for(int cmd_idx=0; cmd_idx<cmd_len; cmd_idx+=1){
+        
         uart_puts(cmd_list[cmd_idx].cmd);
-        uart_puts("\t\t");
+        if(strlen(cmd_list[cmd_idx].cmd)>7){
+            uart_puts("\t");
+        } else {
+            uart_puts("\t\t");
+        }
         uart_puts(cmd_list[cmd_idx].help);
         uart_puts("\r\n");
     }
@@ -192,7 +201,7 @@ void shell_mailbox(char* args){
 
 void shell_alloc(char* args){
     uart_puts("My Heap starting address in bytes is: ");
-    uart_hex(HEAP_START);
+    //uart_hex(HEAP_START);
     uart_puts("\r\n");
 
     uart_puts("dtb: ");
@@ -220,10 +229,11 @@ void shell_alloc(char* args){
 }
 
 void shell_user_program(char* args){
-    printf("user program test:\n");
+    printf("running user program [%s]\n", args);
     idle_t = thread_create(0);
     asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
 
+    exec_program_name = args;
     thread_create(exec);
     
     core_timer_enable(SCHEDULE_TVAL);
@@ -232,28 +242,8 @@ void shell_user_program(char* args){
     idle();
 }
 
-void shell_user_program_2(char* args){
-    printf("user 2 program test:\n");
-    idle_t = thread_create(0);
-    asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-    
-    thread_create(exec_my_user_shell);
-    
-    core_timer_enable(SCHEDULE_TVAL);
-    plan_next_interrupt_tval(SCHEDULE_TVAL);
-    enable_interrupt();
-}
-
-
-//void 
-
-void shell_ls(char* args){
+void shell_cpio_ls(char* args){
     cpio_ls();
-}
-
-void shell_start_timer(char* args){
-    uart_puts("timer enable\n");
-    core_timer_enable(-1);
 }
 
 void shell_async_puts(char* args){
@@ -263,7 +253,7 @@ void shell_async_puts(char* args){
 }
 
 void shell_test(char* args){
-    exec();
+    //exec();
 }
 
 void shell_settimeout(char* args){
@@ -289,22 +279,6 @@ void shell_settimeout(char* args){
     add_timer(print_callback, timeout_message, timeout_time);
 }
 
-void shell_run(char* args){
-     //print_s(args);
-    uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = 0x30100000; // load your program here
-    uint64_t target_sp = 0x31000000;
-
-    //cpio_load_user_program("user_program.img", target_addr);
-    cpio_load_user_program(args, target_addr);
-    //cpio_load_user_program("test_loop", target_addr);
-    //core_timer_enable();
-    asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
-    asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
-    asm volatile("msr sp_el0, %0" : : "r"(target_sp));
-    asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
-                          // we set the register manually to perform a "jump" or switchning between kernel and user space.
-}
 
 void shell_events(char* args){
     show_all_events();
@@ -318,14 +292,31 @@ void shell_dma_test(char* args){
     dma_test();
 }
 
-void shell_thread_test(char* args){
-    thread_test();
-}
-
-void shell_thread_timer_test(char* args){
-    thread_timer_test();
-}
-
 void shell_dtb(char* args){
     dtb_print(0);
+}
+
+void shell_vfs_test(char* args){
+    vfs_test();
+}
+
+void shell_ls(char* args){
+    // default argument is foo
+    if(!strcmp(args, "foo")){
+        strcpy(args, ".");
+    }
+    vfs_list(args);
+}
+
+void shell_chdir(char* args){
+    vfs_chdir(args);
+}
+
+void shell_cat(char* args){
+    char buf[CAT_BUF_SIZE];
+    struct file* f = vfs_open(args, 0);
+    vfs_read(f, buf, CAT_BUF_SIZE);
+    vfs_close(f);
+    printf("%s", buf);
+    printf("\n");
 }

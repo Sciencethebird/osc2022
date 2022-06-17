@@ -2,10 +2,13 @@
 #include "timer.h"
 #include "string.h"
 #include "io.h"
-#include "memory.h"
+#include "alloc.h"
 #include "printf.h"
 #include "utils.h"
 #include "kernel.h"
+#include "vfs.h"
+
+char* exec_program_name;
 
 void thread_init() {
   run_queue.head = 0;
@@ -77,7 +80,7 @@ void schedule() {
   plan_next_interrupt_tval(SCHEDULE_TVAL);
   enable_interrupt();
   
-  switch_to((uint64_t)get_current(), run_queue.head);
+  switch_to((uint64_t)get_current(), (uint64_t)run_queue.head);
 
   //uint64_t sp;
   //asm volatile("mov %0, sp\n" : "=r"(sp) :);
@@ -254,63 +257,30 @@ void foo() {
   return;
 }
 
-void foo2(){
-  
-  for (int i = 1; i <= 5; ++i) {
-    uint64_t lr;
-    asm volatile("mov %0, lr" : "=r"(lr));
-
-    printf("link register: %d\n", lr);
-
-    print_s("\r\n");
-    print_i(i);
-    print_s(",foo2 Thread id: ");
-    print_i(current_thread()->pid);
-    print_s("\r\n");
-    delay(1000); // user small number on real RPi
-  }
-  //print_s("\n\n\n\ndone!!!!!!\r\n");
-  exit();
+// file system related
+struct file *thread_get_file(int fd) {
+  thread_info *cur = get_current();
+  return cur->fd_table.files[fd];
 }
 
-void foo3(){
-  while(1){
-    printf("foo3\n");
-    delay(100000000);
+int thread_register_fd(struct file *file) {
+  if (file == 0) return -1;
+  thread_info *cur = get_current();
+  // find next available fd
+  for (int fd = 3; fd < FD_MAX; ++fd) {
+    if (cur->fd_table.files[fd] == 0) {
+      cur->fd_table.files[fd] = file;
+      return fd;
+    }
   }
+  return -1;
 }
 
-//void thread(callback func)
-
-void thread_test() {
-  // I'm not sure why you need following lines
-  thread_info *idle_t = thread_create(foo3);
-  asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-  //for (int i = 0; i < 5; ++i) {
-  //  print_i(i);
-  //  print_s("\r\n");
-  //  thread_create(foo);
-  //}
-  //thread_create(exec);
-  idle();
-}
-
-void thread_timer_test(){
-  // scheduling using timer interrupt
-  print_s("timer schedular test\r\n");
-  idle_t = thread_create(0);
-  asm volatile("msr tpidr_el1, %0\n" ::"r"((uint64_t)idle_t));
-
-  for (int i = 0; i <5; ++i) {
-    print_i(i);
-    print_s("\r\n");
-    thread_create(foo2);
-  }
-  bp("start timer\r\n");
-  core_timer_enable(SCHEDULE_TVAL);
-  plan_next_interrupt_tval(SCHEDULE_TVAL);
-  enable_interrupt();
-  //idle_thread();
+int thread_clear_fd(int fd) {
+  if (fd < 0 || fd >= FD_MAX) return -1;
+  thread_info *cur = get_current();
+  cur->fd_table.files[fd] = 0;
+  return 1;
 }
 
 
@@ -326,7 +296,7 @@ void exec() {
     //}
     uint64_t user_sp = cur->user_stack_base + STACK_SIZE;
     cur->user_program_size = USER_PROGRAM_SIZE;
-    cpio_load_user_program("syscall.img", cur->user_program_base);
+    cpio_load_user_program(exec_program_name, cur->user_program_base);
 
     uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
     uint64_t target_addr = cur->user_program_base;
@@ -335,21 +305,6 @@ void exec() {
     //cpio_load_user_program("syscall.img", target_addr);
     //cpio_load_user_program("test_loop", target_addr);
     //cpio_load_user_program("user_shell", target_addr);
-
-    asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
-    asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
-    asm volatile("msr sp_el0, %0" : : "r"(target_sp));
-    asm volatile("eret"); // eret will fetch spsr_el1, elr_el1.. and jump (return) to user program.
-                          // we set the register manually to perform a "jump" or switchning between kernel and user space.
-}
-
-void exec_my_user_shell() {
-    //print_s(args);
-    uint64_t spsr_el1 = 0x0;  // EL0t with interrupt enabled, PSTATE.{DAIF} unmask (0), AArch64 execution state, EL0t
-    uint64_t target_addr = 0x30100000; // load your program here
-    uint64_t target_sp = 0x31000000;
-
-    cpio_load_user_program("user_shell", target_addr);
 
     asm volatile("msr spsr_el1, %0" : : "r"(spsr_el1)); // set PSTATE, executions state, stack pointer
     asm volatile("msr elr_el1, %0" : : "r"(target_addr)); // link register at 
