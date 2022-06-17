@@ -7,6 +7,7 @@
 #include "string.h"
 #include "thread.h"
 #include "tmpfs.h"
+#include "device.h"
 
 void vfs_test() {
   const char* argv[] = {"vfs_test", 0};
@@ -78,6 +79,17 @@ void vfs_init() {
 
   // vfs_fat_test();
   // thread_fatfs_test();
+  device_init();
+  struct filesystem* devfs =
+      (struct filesystem*)malloc(sizeof(struct filesystem));
+  devfs->name = "dev";
+  devfs->setup_mount = device_setup_mount;
+  register_filesystem(devfs);
+
+  char dev_dir[20] = "/dev";
+  vfs_mkdir(dev_dir);
+  vfs_mount("dev", dev_dir, devfs->name);
+
 }
 
 int register_filesystem(struct filesystem* fs) {

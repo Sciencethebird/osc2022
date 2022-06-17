@@ -14,6 +14,10 @@ void thread_init() {
   run_queue.head = 0;
   run_queue.tail = 0;
   thread_cnt = 0;
+
+  stdin = vfs_open("/dev/uart", 0);
+  stdout = vfs_open("/dev/uart", 0);
+  stderr = vfs_open("/dev/uart", 0);
 }
 
 thread_info *thread_create(void (*func)()) {
@@ -30,6 +34,9 @@ thread_info *thread_create(void (*func)()) {
   thread->context.lr = (uint64_t)func;
   thread->context.sp = thread->kernel_stack_base + STACK_SIZE;
   thread->user_program_size = USER_PROGRAM_SIZE;
+  thread->fd_table.files[0] = stdin;
+  thread->fd_table.files[1] = stdout;
+  thread->fd_table.files[2] = stderr;
   run_queue_push(thread);
   return thread;
 }
@@ -243,19 +250,6 @@ void create_child(thread_info *parent, thread_info *child) {
   trap_frame->elr_el1 += user_program_base_dist;  // elr_el1
 }
 
-
-void foo() {
-  for (int i = 0; i < 4; ++i) {
-    //printf("Thread id: %d, %d\r\n", current_thread()->tid, i);
-    print_s("Thread id: ");
-    print_i(current_thread()->pid);
-    print_s("\r\n");
-    delay(100000000);
-    schedule();
-  }
-  exit();
-  return;
-}
 
 // file system related
 struct file *thread_get_file(int fd) {

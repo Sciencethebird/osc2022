@@ -49,27 +49,27 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
       sys_list(trap_frame);
       break;
     case SYS_OPEN:
-      printf("[syscall] open\n");
+      //printf("[syscall] open\n");
       sys_open(trap_frame);
       break;
     case SYS_CLOSE:
-      printf("[syscall] close\n");
+      //printf("[syscall] close\n");
       sys_close(trap_frame);
       break;
     case SYS_WRITE:
-      printf("[syscall] write\n");
+      //printf("[syscall] write\n");
       sys_write(trap_frame);
       break;
     case SYS_READ:
-      printf("[syscall] read\n");
+      //printf("[syscall] read\n");
       sys_read(trap_frame);
       break;
     case SYS_MKDIR:
-      printf("[syscall] mkdir\n");
+      //printf("[syscall] mkdir\n");
       sys_mkdir(trap_frame);
       break;
     case SYS_CHDIR:
-      printf("[syscall] chdir\n");
+      //printf("[syscall] chdir\n");
       sys_chdir(trap_frame);
       break;
     
@@ -159,7 +159,7 @@ void sys_kill(trap_frame_t *trap_frame){
 }
 
 void sys_list(trap_frame_t *trap_frame) {
-  char* pathname = (int)trap_frame->x[0];
+  char* pathname = (char*)trap_frame->x[0];
   vfs_list(pathname);
 }
 
@@ -187,6 +187,8 @@ void sys_write(trap_frame_t *trap_frame) {
   struct file *file = thread_get_file(fd);
   const void *buf = (const void *)trap_frame->x[1];
   size_t len = (size_t)trap_frame->x[2];
+
+  printf("[sys_write] fd: %d, len: %d\n", fd, len);
   size_t size = vfs_write(file, buf, len);
   trap_frame->x[0] = size;
 }
@@ -196,6 +198,8 @@ void sys_read(trap_frame_t *trap_frame) {
   struct file *file = thread_get_file(fd);
   void *buf = (void *)trap_frame->x[1];
   size_t len = (size_t)trap_frame->x[2];
+
+  printf("[sys_read] fd: %d, len: %d\n", fd, len);
   size_t size = vfs_read(file, buf, len);
   trap_frame->x[0] = size;
 }

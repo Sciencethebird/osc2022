@@ -81,15 +81,14 @@ void run_shell(){
 
 void main()
 {
-
     // set up serial console
     uart_init();
     // buddy system init
     buddy_init();
-    // thread init
-    thread_init();
     // virtual file system init
     vfs_init();
+    // thread init
+    thread_init();
     // say hello
     uart_puts("Wellcome!\r\n");
     // enables interrupt in EL1 (for uart async IO)

@@ -254,6 +254,13 @@ void shell_async_puts(char* args){
 
 void shell_test(char* args){
     //exec();
+    char buf[CAT_BUF_SIZE];
+    struct file* f = vfs_open("/dev/uart", 0);
+    vfs_read(f, buf, 4);
+    vfs_write(f, buf, 4);
+    vfs_close(f);
+    printf("out: %s", buf);
+    printf("\n");
 }
 
 void shell_settimeout(char* args){

@@ -1,6 +1,7 @@
 #include "mini_uart.h"
 #include "printf.h"
 #include "gpio.h"
+#include "vfs.h"
 
 void uart_init() {
   register unsigned int r;

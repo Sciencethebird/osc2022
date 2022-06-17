@@ -78,6 +78,7 @@ int tmpfs_lookup(struct vnode* dir_node, struct vnode** target,
 
   for (int i = 0; i < MAX_FILES_IN_DIR; i++) {
     fentry = ((struct tmpfs_fentry*)dir_node->internal)->child[i];
+    //printf("[tmpfs_lookup] %s\n", fentry->name);
     if (!strcmp(fentry->name, component_name)) {
       *target = fentry->vnode;
       return 1;

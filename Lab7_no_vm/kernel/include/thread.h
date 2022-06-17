@@ -118,7 +118,7 @@ void timer_schedular_handler();
 // exec
 void exec(); // calls syscall.img
 
-// file system
+// user fd table
 struct file *thread_get_file(int fd);
 //int thread_get_fd(struct file *file);
 int thread_register_fd(struct file *file);
