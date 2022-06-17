@@ -41,5 +41,8 @@ int main(int argc, char** argv) {
   fd = open("/initramfs/happy", 0);
   read(fd, (void*) buf, 100);
   printf("read result: %s\n", buf);
+
+  // write std resutl
+  write(1, buf, 100);
   return 0;
 }
