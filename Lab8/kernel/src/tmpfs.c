@@ -44,13 +44,13 @@ void tmpfs_set_fentry(struct tmpfs_fentry* fentry, const char* component_name,
 int tmpfs_setup_mount(struct filesystem* fs, struct mount* mount) {
   struct tmpfs_fentry* root_fentry =
       (struct tmpfs_fentry*)malloc(sizeof(struct tmpfs_fentry));
-  struct vnode* vnode = mount->root;
+  struct vnode* vnode = (struct vnode*)malloc(sizeof(struct vnode));
   vnode->mount = mount;
   vnode->v_ops = tmpfs_v_ops;
   vnode->f_ops = tmpfs_f_ops;
   vnode->internal = (void*)root_fentry;
   root_fentry->parent_vnode = 0;
-  tmpfs_set_fentry(root_fentry, mount->mount_entry, FILE_DIRECTORY, vnode);
+  tmpfs_set_fentry(root_fentry, "/", FILE_DIRECTORY, vnode);
   mount->fs = fs;
   mount->root = vnode;
   return 1;

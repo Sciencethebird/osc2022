@@ -76,7 +76,7 @@ int device_setup_mount(struct filesystem* fs, struct mount* mount) {
   vnode->internal = (void*)root_fentry;
 
   root_fentry->parent_vnode = 0;
-  device_set_fentry(root_fentry, mount->mount_entry, vnode, DEV_ROOT);
+  device_set_fentry(root_fentry, "/", vnode, DEV_ROOT);
   mount->fs = fs;
   mount->root = vnode;
   

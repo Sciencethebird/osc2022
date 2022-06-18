@@ -42,13 +42,33 @@ void vfs_init() {
   register_filesystem(tmpfs);
 
   // mount tmpfs to root filesystem
-  struct vnode* root_vnode = (struct vnode*)malloc(sizeof(struct vnode));
   rootfs = (struct mount*)malloc(sizeof(struct mount));
-  rootfs->root = root_vnode;
-  strcpy(rootfs->mount_entry, "/");
   tmpfs->setup_mount(tmpfs, rootfs);
-  
-  current_dir = rootfs->root;
+
+
+  // cpiofs init
+  cpiofs_init();
+  struct filesystem* cpiofs =
+      (struct filesystem*)malloc(sizeof(struct filesystem));
+  cpiofs->name = "initramfs";
+  cpiofs->setup_mount = cpiofs_setup_mount;
+  register_filesystem(cpiofs);
+  // create mount dir and mount
+  //char initramfs_dir[20] = "/initramfs"; // not sure why this causes bug
+  vfs_mkdir("/initramfs");
+  vfs_mount("initramfs", "/initramfs", cpiofs->name);
+
+
+  // device file systems
+  device_init();
+  struct filesystem* devfs =
+      (struct filesystem*)malloc(sizeof(struct filesystem));
+  devfs->name = "dev";
+  devfs->setup_mount = device_setup_mount;
+  register_filesystem(devfs);
+  // create mount dir and mount
+  vfs_mkdir("/dev");
+  vfs_mount("dev", "/dev", devfs->name);
 
   //// init and register fatfs
   //fatfs_init();
@@ -58,38 +78,7 @@ void vfs_init() {
   //fatfs->setup_mount = fatfs_setup_mount;
   //register_filesystem(fatfs);
 
-  // cpiofs init
-  cpiofs_init();
-  struct filesystem* cpiofs =
-      (struct filesystem*)malloc(sizeof(struct filesystem));
-  cpiofs->name = "initramfs";
-  cpiofs->setup_mount = cpiofs_setup_mount;
-  register_filesystem(cpiofs);
-
-  char initramfs_dir[20] = "/initramfs";
-  vfs_mkdir(initramfs_dir);
-  vfs_mount("initramfs", initramfs_dir, cpiofs->name);
-  //vfs_find_vnode(&initramfs_vnode, initramfs_dir);
-  //initramfs = (struct mount*)malloc(sizeof(struct mount));
-  //nitramfs->root = initramfs_vnode;
-  //strcpy(initramfs->mount_entry, initramfs_dir);
-  //cpiofs->setup_mount(cpiofs, initramfs);
-  
-  //cpio_populate_rootfs();
-
-  // vfs_fat_test();
-  // thread_fatfs_test();
-  device_init();
-  struct filesystem* devfs =
-      (struct filesystem*)malloc(sizeof(struct filesystem));
-  devfs->name = "dev";
-  devfs->setup_mount = device_setup_mount;
-  register_filesystem(devfs);
-
-  char dev_dir[20] = "/dev";
-  vfs_mkdir(dev_dir);
-  vfs_mount("dev", dev_dir, devfs->name);
-
+  current_dir = rootfs->root;
 }
 
 int register_filesystem(struct filesystem* fs) {

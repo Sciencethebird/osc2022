@@ -54,7 +54,7 @@ void lower_64_EL_sync_handler(uint64_t sp){
 
     int syscall_number;
     asm volatile("mov %0, x8" : "=r"(syscall_number));
-
+    //printf("[lower_64_EL_sync_handler] arg 0: %d\n", (int)trap_frame->x[0]);
     syscall_handler(syscall_number, trap_frame);
   }
   //printf("pid %d done exception handling\n", get_current());

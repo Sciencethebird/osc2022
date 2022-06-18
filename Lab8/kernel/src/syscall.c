@@ -171,6 +171,7 @@ void sys_open(trap_frame_t *trap_frame) {
   printf("[sys_open] called, flag: %d, dir: %s\n", flags, pathname);
   struct file *file = vfs_open(pathname, flags);
   int fd = thread_register_fd(file);
+  printf("[sys_open]fd = %d\n", fd);
   trap_frame->x[0] = fd;
 }
 
@@ -184,6 +185,9 @@ void sys_close(trap_frame_t *trap_frame) {
 
 void sys_write(trap_frame_t *trap_frame) {
   int fd = (int)trap_frame->x[0];
+  if(fd <0){
+    printf("[sys_write] error fd: %d, %x\n", fd, (unsigned int)trap_frame->x[0]);
+  }
   struct file *file = thread_get_file(fd);
   const void *buf = (const void *)trap_frame->x[1];
   size_t len = (size_t)trap_frame->x[2];
