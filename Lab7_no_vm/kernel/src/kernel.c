@@ -10,11 +10,21 @@
 #include "timer.h"
 #include "thread.h"
 #include "kernel.h"
+#include "printf.h"
 //extern commads cmd_list[];
 
 #define BUFFER_LEN 1000
+#define BACKSPACE 127
+#define TERMINAL_MAX_WIDTH 100
 
-void read_command(char* buffer){
+void clear_line() {
+    printf("\r");
+    for(int i = 0; i<TERMINAL_MAX_WIDTH; i++){
+        printf(" ");
+    }
+}
+
+void read_command(char* buffer) {
     //core_timer_disable();
     //enable_interrupt();
     enable_uart_interrupt();
@@ -27,11 +37,16 @@ void read_command(char* buffer){
         if(c=='\n') {
             uart_puts("\r\n"); // echo
             break;
-        }
-        else {
+        } else if(c == BACKSPACE) {
+            if(idx > 0) {
+                buffer[--idx] = '\0';
+                clear_line(); 
+                printf("\r# %s", buffer); 
+            }
+        } else {
             buffer[idx++] = c;
-        }
-        uart_send(c); // echo
+            uart_send(c); // echo
+        }   
     }
     disable_uart_interrupt();
 }
@@ -41,7 +56,6 @@ void clear_buffer(char* buffer, int size){
         buffer[i] = '\0';
     }
 }
-
 
 void execute_command(const char* cmd){
     //int cmd_len = sizeof(cmd_list)/sizeof(commads);

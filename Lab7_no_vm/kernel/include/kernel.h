@@ -16,6 +16,7 @@
 
 char input_buffer[BUFFER_LEN];
 void read_command(char* buffer);
+void clear_line();
 void clear_buffer(char* buffer, int size);
 void execute_command(const char* cmd);
 void run_shell();
