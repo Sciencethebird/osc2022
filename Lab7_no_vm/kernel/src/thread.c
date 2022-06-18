@@ -15,7 +15,7 @@ void thread_init() {
   run_queue.tail = 0;
   thread_cnt = 0;
 
-  stdin = vfs_open("/dev/uart", 0);
+  stdin  = vfs_open("/dev/uart", 0);
   stdout = vfs_open("/dev/uart", 0);
   stderr = vfs_open("/dev/uart", 0);
 }

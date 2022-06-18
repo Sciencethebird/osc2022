@@ -24,7 +24,6 @@ struct file {
 struct mount {
   struct vnode* root;
   struct filesystem* fs;
-  char mount_entry[20];
 };
 
 struct filesystem {

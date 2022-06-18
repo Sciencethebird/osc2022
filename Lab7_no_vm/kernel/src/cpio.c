@@ -151,7 +151,6 @@ void cpiofs_set_fentry(struct cpiofs_fentry* fentry, const char* component_name,
       fentry->child[i]->parent_vnode = vnode;
     }
     fentry->file->size = 0;
-    
   }
 }
 
@@ -159,7 +158,7 @@ int cpiofs_setup_mount(struct filesystem* fs, struct mount* mount) {
   // setup cpio root node
   struct cpiofs_fentry* root_fentry =
       (struct cpiofs_fentry*)malloc(sizeof(struct cpiofs_fentry));
-  struct vnode* vnode = mount->root;
+  struct vnode* vnode = (struct vnode*)malloc(sizeof(struct vnode));
 
   vnode->mount = mount;
   vnode->v_ops = cpiofs_v_ops;
@@ -167,7 +166,7 @@ int cpiofs_setup_mount(struct filesystem* fs, struct mount* mount) {
   vnode->internal = (void*)root_fentry;
 
   root_fentry->parent_vnode = 0;
-  cpiofs_set_fentry(root_fentry, mount->mount_entry, 0, FILE_DIRECTORY, vnode);
+  cpiofs_set_fentry(root_fentry, "/", 0, FILE_DIRECTORY, vnode);
   mount->fs = fs;
   mount->root = vnode;
 
