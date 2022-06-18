@@ -54,9 +54,9 @@ void vfs_init() {
   cpiofs->setup_mount = cpiofs_setup_mount;
   register_filesystem(cpiofs);
   // create mount dir and mount
-  char initramfs_dir[20] = "/initramfs";
-  vfs_mkdir(initramfs_dir);
-  vfs_mount("initramfs", initramfs_dir, cpiofs->name);
+  //char initramfs_dir[20] = "/initramfs"; // not sure why this causes bug
+  vfs_mkdir("/initramfs");
+  vfs_mount("initramfs", "/initramfs", cpiofs->name);
 
 
   // device file systems
@@ -67,9 +67,8 @@ void vfs_init() {
   devfs->setup_mount = device_setup_mount;
   register_filesystem(devfs);
   // create mount dir and mount
-  char dev_dir[20] = "/dev";
-  vfs_mkdir(dev_dir);
-  vfs_mount("dev", dev_dir, devfs->name);
+  vfs_mkdir("/dev");
+  vfs_mount("dev", "/dev", devfs->name);
 
   //// init and register fatfs
   //fatfs_init();
