@@ -222,16 +222,31 @@ int fbfs_read(struct file* file, void* buf, size_t len) {
 }
 
 int fbfs_write(struct file* file, const void* buf, size_t len) {
-  //printf("[fbfs_write] not implemented\n");
-  for (size_t i = 0; i < len; i++) {
-    lfb[file->f_pos++] = ((char*)buf)[i];
+  //printf("[fbfs_write] len %d\n", len);
+  //printf("%d, %d, %d, %d\n", ((char*)buf)[0], ((char*)buf)[1], ((char*)buf)[2], ((char*)buf)[3]);
+  if(len != 4){
+    printf("[fbfs_write] write len error: %d\n", len);
+    return -1;
   }
-  return len;
+  
+  if(isrgb==1){
+    lfb[file->f_pos++] = ((char*)buf)[0];
+    lfb[file->f_pos++] = ((char*)buf)[1];
+    lfb[file->f_pos++] = ((char*)buf)[2];
+    lfb[file->f_pos++] = ((char*)buf)[3];
+  } else {
+    lfb[file->f_pos++] = ((char*)buf)[2];
+    lfb[file->f_pos++] = ((char*)buf)[1];
+    lfb[file->f_pos++] = ((char*)buf)[0];
+    lfb[file->f_pos++] = ((char*)buf)[3];
+  }
+  return 4;
 }
 
 int fbfs_ioctl(struct file* file, unsigned long request, void* args) {
   struct framebuffer_info* info = (struct framebuffer_info*) args;
-  printf("framebuffer_info: w: %d, h: %d\n", info->width, info->height);
+  printf("[fbfs_ioctl] framebuffer_info: w: %d, h: %d, pitch: %d, is_rgb: %d\n", 
+        info->width, info->height, info->pitch, info->isrgb);
   if(request == 0) {
     mbox[0] = 35 * 4;
     mbox[1] = MBOX_REQUEST;
@@ -276,7 +291,7 @@ int fbfs_ioctl(struct file* file, unsigned long request, void* args) {
     mbox[33] = info->pitch; // FrameBufferInfo.pitch
 
     mbox[34] = MBOX_TAG_LAST;
-
+    
     // this might not return exactly what we asked for, could be
     // the closest supported resolution instead
     if (mbox_call(MBOX_CH_PROP) && mbox[20] == 32 && mbox[28] != 0) {
@@ -286,7 +301,8 @@ int fbfs_ioctl(struct file* file, unsigned long request, void* args) {
       pitch = mbox[33];       // get number of bytes per line
       isrgb = mbox[24];       // get the actual channel order
       lfb = (void *)((unsigned long)mbox[28]);
-      printf("set screen resolution: %dx%d, at: %x\n", width, height, lfb);
+      printf("[fbfs_ioctl] set screen resolution: %dx%d, %d, %d, at: %x\n",
+             width, height, pitch, isrgb, lfb);
     } else {
       printf("Unable to set screen resolution to 1024x768x32\n");
     }

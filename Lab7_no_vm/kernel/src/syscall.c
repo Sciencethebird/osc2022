@@ -154,7 +154,7 @@ void sys_mbox_call(trap_frame_t *trap_frame) {
       //// manual address translation： user VA --walk--> user PA --PA2VA--> kernel PA --> 
       //unsigned int *mbox_user_PA = (unsigned int *) user_VA2PA(get_current(), (uint64_t)mbox_user_VA);
       //unsigned int *mbox_kernel_VA = (unsigned int *) PA2VA(mbox_user_PA);
-      //printf("mbox ch: %d, *mbox: %d\n", ch, mbox_kernel_VA);
+      printf("[sys_mbox_call] ch: %d, *mbox: %d\n", ch, mbox_user);
 
       int valid = mbox_call_user(ch, mbox_user);
 
