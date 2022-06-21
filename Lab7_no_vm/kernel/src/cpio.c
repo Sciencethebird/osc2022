@@ -274,6 +274,7 @@ int cpiofs_read(struct file* file, void* buf, size_t len) {
   struct cpiofs_fentry* fentry = (struct cpiofs_fentry*)file->vnode->internal;
   for (size_t i = 0; i < len; i++) {
     ((char*)buf)[i] = fentry->file->file_location[file->f_pos++];
+    printf("%d ", ((char*)buf)[i]);
     read_len++;
     if (read_len == fentry->file->size) {
       break;

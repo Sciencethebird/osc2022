@@ -15,14 +15,6 @@
 
 #define BUFFER_LEN 1000
 #define BACKSPACE 127
-#define TERMINAL_MAX_WIDTH 100
-
-void clear_line() {
-    printf("\r");
-    for(int i = 0; i<TERMINAL_MAX_WIDTH; i++){
-        printf(" ");
-    }
-}
 
 void read_command(char* buffer) {
     //core_timer_disable();
@@ -40,8 +32,9 @@ void read_command(char* buffer) {
         } else if(c == BACKSPACE) {
             if(idx > 0) {
                 buffer[--idx] = '\0';
-                clear_line(); 
-                printf("\r# %s", buffer); 
+                // move cursor forward and print space to clear char
+                // then move back the cursor back to deleted char 
+                printf("\b \b");
             }
         } else {
             buffer[idx++] = c;

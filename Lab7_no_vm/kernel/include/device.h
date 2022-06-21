@@ -4,10 +4,11 @@
 #include "utils.h"
 #include "vfs.h"
 #include "mini_uart.h"
+#include "mbox.h"
 
 #define MAX_DEVICE_IN_DIR 16
 
-typedef enum { DEV_ROOT, DEV_UART, DEV_NONE } DEV_TYPE;
+typedef enum { DEV_ROOT, DEV_UART, DEV_FB, DEV_NONE } DEV_TYPE;
 
 struct device_fentry {
   char name[20];
@@ -38,8 +39,6 @@ void device_list(struct vnode* dir);
 
 void root_init();
 
-
-
 /**********************************************/
 /*              uart file system              */
 /**********************************************/
@@ -49,4 +48,26 @@ struct file_operations* uartfs_f_ops;
 void uartfs_init();
 int uartfs_read(struct file* file, void* buf, size_t len);
 int uartfs_write(struct file* file, const void* buf, size_t len);
+
+/**********************************************/
+/*                frame buffer                */
+/**********************************************/
+
+struct framebuffer_info {
+  unsigned int width;
+  unsigned int height;
+  unsigned int pitch;
+  unsigned int isrgb;
+};
+
+unsigned int width, height, pitch, isrgb; /* dimensions and channel order */
+unsigned char *lfb;                       /* raw frame buffer address */
+
+struct vnode_operations* fbfs_v_ops;
+struct file_operations* fbfs_f_ops;
+
+void fbfs_init();
+int fbfs_read(struct file* file, void* buf, size_t len);
+int fbfs_write(struct file* file, const void* buf, size_t len);
+int fbfs_ioctl(struct file* file, unsigned long request, void* args);
 

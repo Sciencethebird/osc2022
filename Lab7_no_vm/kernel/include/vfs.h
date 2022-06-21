@@ -39,6 +39,7 @@ struct filesystem_list {
 struct file_operations {
   int (*write)(struct file* file, const void* buf, size_t len);
   int (*read)(struct file* file, void* buf, size_t len);
+  int (*ioctl)(struct file* file, unsigned long request, void* args);
   void (*list)(struct vnode* dir);
 };
 

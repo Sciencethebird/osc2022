@@ -77,6 +77,15 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
       printf("[syscall] mount\n");
       sys_mount(trap_frame);
       break;
+
+    case SYS_LSEEK64:
+      //printf("[syscall] lseek64\n");
+      sys_lseek64(trap_frame);
+      break;
+    case SYS_IOCTL:
+      //printf("[syscall] ioctl\n");
+      sys_ioctl(trap_frame);
+      break;
     /*
     case SYS_UMOUNT:
       sys_umount(trap_frame);
@@ -192,7 +201,7 @@ void sys_write(trap_frame_t *trap_frame) {
   const void *buf = (const void *)trap_frame->x[1];
   size_t len = (size_t)trap_frame->x[2];
 
-  printf("[sys_write] fd: %d, len: %d\n", fd, len);
+  //printf("[sys_write] fd: %d, len: %d\n", fd, len);
   size_t size = vfs_write(file, buf, len);
   trap_frame->x[0] = size;
 }
@@ -228,8 +237,32 @@ void sys_mount(trap_frame_t *trap_frame) {
   trap_frame->x[0] = result;
 }
 
-//void sys_umount(trap_frame_t *trap_frame) {
-//  const char *mountpoint = (const char *)trap_frame->x[0];
-//  int result = vfs_umount(mountpoint);
-//  trap_frame->x[0] = result;
-//}
+void sys_lseek64(trap_frame_t *trap_frame) {
+  int fd     = (int)trap_frame->x[0];
+  int offset = (int)trap_frame->x[1];
+  int whenc  = (int)trap_frame->x[2];
+  //printf("[sys_lseek64] fd: %d, offset: %d, whenc: %d\n", fd, offset, whenc);
+  if(whenc == SEEK_SET) {
+    struct file *file = thread_get_file(fd);
+    file->f_pos = offset;
+    trap_frame->x[0] = offset;
+  } else {
+    printf("[sys_lseek64] whenc %d is not implemented.\n", whenc);
+    trap_frame->x[0] = -1;
+  }
+}
+
+void sys_ioctl(trap_frame_t *trap_frame) {
+  int fd  = (int)trap_frame->x[0];
+  int req = (int)trap_frame->x[1];
+  void* args = (void*)trap_frame->x[2];
+  printf("[sys_ioctl] fd: %d, req: %d, arg: %d\n", fd, req, args);
+  if(req == 0) {
+    struct file *file = thread_get_file(fd);
+    file->f_ops->ioctl(file, req, args);
+    trap_frame->x[0] =  0;
+  } else {
+    printf("[sys_ioctl] req %d is not implemented.\n", req);
+    trap_frame->x[0] = -1;
+  }
+}
