@@ -2,7 +2,7 @@
 
 #include "alloc.h"
 #include "cpio.h"
-//#include "fatfs.h"
+#include "fatfs.h"
 #include "printf.h"
 #include "string.h"
 #include "thread.h"
@@ -70,13 +70,17 @@ void vfs_init() {
   vfs_mkdir("/dev");
   vfs_mount("dev", "/dev", devfs->name);
 
-  //// init and register fatfs
-  //fatfs_init();
-  //struct filesystem* fatfs =
-  //    (struct filesystem*)malloc(sizeof(struct filesystem));
-  //fatfs->name = "fatfs";
-  //fatfs->setup_mount = fatfs_setup_mount;
-  //register_filesystem(fatfs);
+  // init and register fatfs
+  fatfs_init();
+  struct filesystem* fatfs =
+      (struct filesystem*)malloc(sizeof(struct filesystem));
+  fatfs->name = "fatfs";
+  fatfs->setup_mount = fatfs_setup_mount;
+  register_filesystem(fatfs);
+
+  // create mount dir and mount
+  vfs_mkdir("/boot");
+  vfs_mount("fatfs", "/boot", fatfs->name);
 
   current_dir = rootfs->root;
 }
@@ -168,6 +172,7 @@ struct file* vfs_open(const char* pathname, int flags) {
   if (flags == O_CREAT) {
     if (!file_found) {
       // todo: check O_CREAT on a read-only system
+      printf("[vfs_open] O_CREATE\n");
       dir->v_ops->create(dir, &target, filename, FILE_REGULAR);
       fd = (struct file*)malloc(sizeof(struct file));
       fd->vnode = target;
@@ -200,6 +205,7 @@ int vfs_close(struct file* file) {
 int vfs_write(struct file* file, const void* buf, size_t len) {
   // 1. write len byte from buf to the opened file.
   // 2. return written size or error code if an error occurs.
+  //printf("[vfs_write] %d\n", file->f_ops);
   return file->f_ops->write(file, buf, len);
 }
 

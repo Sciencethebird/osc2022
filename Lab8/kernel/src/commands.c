@@ -322,8 +322,12 @@ void shell_chdir(char* args){
 void shell_cat(char* args){
     char buf[CAT_BUF_SIZE];
     struct file* f = vfs_open(args, 0);
-    vfs_read(f, buf, CAT_BUF_SIZE);
-    vfs_close(f);
-    printf("%s", buf);
-    printf("\n");
+    if(f == 0) {
+        printf("[cat] error, No such file or directory\n");
+    } else {
+        vfs_read(f, buf, CAT_BUF_SIZE);
+        vfs_close(f);
+        printf("%s", buf);
+        printf("\n");
+    }
 }

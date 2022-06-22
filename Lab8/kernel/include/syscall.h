@@ -22,9 +22,13 @@
 #define SYS_MKDIR 15
 #define SYS_MOUNT 16
 #define SYS_CHDIR 17
+#define SYS_LSEEK64 18
+#define SYS_IOCTL 19
 
 #define SYS_LIST 77
 #define SYS_UMOUNT 88
+
+# define SEEK_SET 0
 
 void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame);
 
@@ -46,3 +50,6 @@ void sys_mkdir(trap_frame_t *trap_frame);
 void sys_chdir(trap_frame_t *trap_frame);
 void sys_mount(trap_frame_t *trap_frame);
 void sys_umount(trap_frame_t *trap_frame);
+
+void sys_ioctl(trap_frame_t *trap_frame);
+void sys_lseek64(trap_frame_t *trap_frame);

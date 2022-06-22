@@ -36,15 +36,37 @@ kernel8.img: kernel8.elf
 run:
 	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display none -serial null -serial stdio \
 		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
+run-sd:
+	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display none -serial null -serial stdio \
+		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -drive if=sd,file=sfn_nctuos.img,format=raw
+
+run-sd-display:
+	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -serial null -serial stdio \
+		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -drive if=sd,file=sfn_nctuos.img,format=raw
+
+
+#run-sfn:
+#	$(QEMU) -M raspi3 -kernel KERNEL8.IMG -display none -serial null -serial stdio \
+#		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -drive if=sd,file=sfn_nctuos.img,format=raw
+
 run-display:
 	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display gtk -serial null -serial stdio \
 		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
 debug:
 	$(QEMU) -M raspi3 -kernel $(BUILD_DIR)/kernel8.img -display none -s -S -serial null -serial stdio \
 		-initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
-boot:
-	cp ../bootloader/bootloader.img .
-	qemu-system-aarch64 -M raspi3 -kernel bootloader.img -serial null -serial pty -initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb
 
+clear_img:
+	rm sfn_nctuos.img
+	cp ../sfn_nctuos.img .
+
+refresh-loop-device: remove-loop-device setup-loop-device
+
+setup-loop-device:
+	sudo losetup -fP sfn_nctuos.img
+	sudo mount -t vfat /dev/loop27p1 img_mount
+remove-loop-device:
+	sudo umount img_mount
+	sudo losetup -d /dev/loop27
 #file build/kernel8.elf
 #target remote localhost:1234

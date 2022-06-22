@@ -92,6 +92,7 @@ void main()
     uart_init();
     // buddy system init
     buddy_init();
+    //buddy_test();
     // virtual file system init
     vfs_init();
     // thread init
