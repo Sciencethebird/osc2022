@@ -10,6 +10,7 @@
 #define MBR_PARTITION_BASE 0x1BE
 #define MAX_FILES_IN_DIR 16
 #define FATFS_BUF_SIZE (10 * kb)
+#define TABLE_TERMINATE 0xfffffff
 
 struct mbr_partition_entry {
   unsigned char status_flag;              // 0x0
@@ -101,12 +102,16 @@ struct fatfs_fentry {
 struct fat_table {
   unsigned int entry[1];
 };
+
 struct fatfs_boot_sector* fat_boot_sector;
 struct fatfs_dentry* fat_root_dentry;
 int fat_starting_sector;
-int fat_table_start_sector;
 int data_starting_sector;
 int root_starting_sector;
+
+// for fat table
+int fat_table_starting_sector;
+int fat_table_num;
 
 struct vnode_operations* fatfs_v_ops;
 struct file_operations* fatfs_f_ops;
@@ -130,3 +135,7 @@ void fatfs_list(struct vnode* dir_node);
 int fatfs_create(struct vnode* dir_node, struct vnode** target,
                  const char* component_name, FILE_TYPE type);
 
+void print_fat_table(int table_index);
+int find_free_fat_table_entry();
+int set_free_fat_table_entry(int entry_index, int value);
+int get_fat_table_entry(int entry_index);

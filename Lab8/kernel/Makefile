@@ -59,12 +59,14 @@ debug:
 clear_img:
 	rm sfn_nctuos.img
 	cp ../sfn_nctuos.img .
+	
 
 refresh-loop-device: remove-loop-device setup-loop-device
 
 setup-loop-device:
 	sudo losetup -fP sfn_nctuos.img
 	sudo mount -t vfat /dev/loop27p1 img_mount
+	sudo cp KEYBOARD.TXT img_mount
 remove-loop-device:
 	sudo umount img_mount
 	sudo losetup -d /dev/loop27

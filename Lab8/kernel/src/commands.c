@@ -253,14 +253,18 @@ void shell_async_puts(char* args){
 }
 
 void shell_test(char* args){
-    //exec();
-    char buf[CAT_BUF_SIZE];
-    struct file* f = vfs_open("/dev/uart", 0);
-    vfs_read(f, buf, 4);
-    vfs_write(f, buf, 4);
-    vfs_close(f);
-    printf("out: %s", buf);
-    printf("\n");
+  char buf[CAT_BUF_SIZE];
+    struct file* f = vfs_open(args, 0);
+    if(f == 0) {
+        printf("[cat] error, No such file or directory\n");
+    } else {
+        vfs_read(f, buf, CAT_BUF_SIZE);
+        vfs_close(f);
+        printf("%s", buf);
+        printf("\n");
+        struct file* df = vfs_open("DUP.TXT", O_CREAT);
+        vfs_write(df, buf, 600);
+    }
 }
 
 void shell_settimeout(char* args){
@@ -325,8 +329,10 @@ void shell_cat(char* args){
     if(f == 0) {
         printf("[cat] error, No such file or directory\n");
     } else {
-        vfs_read(f, buf, CAT_BUF_SIZE);
+        // todo
+        int len = vfs_read(f, buf, CAT_BUF_SIZE);
         vfs_close(f);
+        buf[len] = '\0';
         printf("%s", buf);
         printf("\n");
     }
