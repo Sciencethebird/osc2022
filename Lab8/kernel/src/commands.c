@@ -258,12 +258,12 @@ void shell_test(char* args){
     if(f == 0) {
         printf("[cat] error, No such file or directory\n");
     } else {
-        vfs_read(f, buf, CAT_BUF_SIZE);
+        int len = vfs_read(f, buf, CAT_BUF_SIZE);
         vfs_close(f);
         printf("%s", buf);
         printf("\n");
         struct file* df = vfs_open("DUP.TXT", O_CREAT);
-        vfs_write(df, buf, 600);
+        vfs_write(df, buf, len);
     }
 }
 
@@ -333,7 +333,10 @@ void shell_cat(char* args){
         int len = vfs_read(f, buf, CAT_BUF_SIZE);
         vfs_close(f);
         buf[len] = '\0';
-        printf("%s", buf);
+        //printf("%s", buf);
+        for(int i = 0; i< len; i++){
+            printf("%c", buf[i]);
+        }
         printf("\n");
     }
 }

@@ -65,10 +65,10 @@ refresh-loop-device: remove-loop-device setup-loop-device
 
 setup-loop-device:
 	sudo losetup -fP sfn_nctuos.img
-	sudo mount -t vfat /dev/loop27p1 img_mount
+	sudo mount -t vfat /dev/loop25p1 img_mount
 	sudo cp KEYBOARD.TXT img_mount
 remove-loop-device:
 	sudo umount img_mount
-	sudo losetup -d /dev/loop27
+	sudo losetup -d /dev/loop25
 #file build/kernel8.elf
 #target remote localhost:1234

@@ -9,6 +9,7 @@
 // static int wait_fifo();
 // static void set_block(int size, int cnt);
 // static void wait_finish();
+
 void printblock(int block_idx);
 void readblock(int block_idx, void* buf);
 void writeblock(int block_idx, void* buf);
