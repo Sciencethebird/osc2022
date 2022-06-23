@@ -90,6 +90,8 @@ void main()
 {
     // set up serial console
     uart_init();
+    // simple malloc init
+    startup_alloc_init();
     // buddy system init
     buddy_init();
     //buddy_test();

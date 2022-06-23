@@ -1,11 +1,12 @@
 #include "alloc.h"
 #include "io.h"
+#include "printf.h"
 
 void buddy_test() {
   print_frame_lists();
   uint64_t size[6] = {
       PAGE_SIZE * 1, PAGE_SIZE * 13, PAGE_SIZE * 16,
-      PAGE_SIZE * 2, PAGE_SIZE * 4,  PAGE_SIZE * 8,
+      PAGE_SIZE * 10000, PAGE_SIZE * 10000,  PAGE_SIZE * 10000,
   };
   page_frame *frame_ptr[6];
 
@@ -77,7 +78,54 @@ void dma_test() {
   }
 }
 
+void memory_reserve(int start, int end){
+
+  reserved_section* new_section = simple_malloc(sizeof(reserved_section));
+  reserved_section* cur = reserved_section_list;
+  reserved_section* prev = reserved_section_list;
+
+  // insert into the reserve section list
+  while(start >= cur->start ){
+    if(cur == 0) break;
+    prev = cur;
+    cur = cur->next;
+  }
+
+  new_section->next = cur;
+  new_section->start = start;
+  new_section->end = end;
+  prev->next = new_section;
+
+  // print the list
+  cur = reserved_section_list;
+  while(cur){
+    printf("->[%d, %d]", cur->start, cur->end);
+    cur = cur->next;
+  }printf("\n");
+}
+
+void startup_alloc_init(){
+
+    // for simple_malloc
+    heap_offset = 0;
+    // init page frame table
+    frames = simple_malloc(MAX_PAGE_NUM * sizeof(page_frame)); 
+
+    // reserve section list
+    reserved_section_list = simple_malloc(sizeof(reserved_section));
+    reserved_section_list->next = 0;
+    reserved_section_list->start = 0;
+    reserved_section_list->end = 0;
+
+    // set memory reserve sections
+    memory_reserve(SPIN_TABLE_START, SPIN_TABLE_END); // cpu spin table space
+    memory_reserve(0x80000, 0x1000000);               // kernel space
+    memory_reserve(0x8000000, 0x10000000);            // cpio space
+    memory_reserve(HEAP_START, PAGE_END_ADDR);        // simple malloc space
+}
+
 void buddy_init() {
+    printf("[buddy init] buddy frame number: %d, order: %d\n", MAX_PAGE_NUM, log2(MAX_PAGE_NUM));
     // init each page
     for (int i = 0; i < MAX_PAGE_NUM; i++) {
       frames[i].id = i;
@@ -91,32 +139,92 @@ void buddy_init() {
       free_frame_lists[i] = 0;
       used_frame_lists[i] = 0;
     }
+
     // assign first frame as the largest single memory frame.
-    frames[0].order = MAX_FRAME_ORDER;
-    free_frame_lists[MAX_FRAME_ORDER] = &frames[0];
+    // simple page frame init
+    // frames[0].order = MAX_FRAME_ORDER;
+    // free_frame_lists[MAX_FRAME_ORDER] = &frames[0];
+
+    printf("!!![buddy init] addr 0x%x\n", frames[MAX_PAGE_NUM-1].addr);
+
+    reserved_section* cur = reserved_section_list;
+
+    while(cur){
+
+      int free_section_start = cur->end+1;
+      int free_section_end;
+      
+      if(cur->next == 0) {
+        free_section_end = PAGE_END_ADDR;
+      } else {
+        free_section_end = cur->next->start-1;
+      }
+
+      // get section length
+      int free_section_len = free_section_end - free_section_start;
+      printf("[buddy init] find free section at [%d, %d]\n", free_section_start, free_section_end);
+      // check invalid section length
+      if(free_section_len <= 0){
+        printf("[buddy init] zero section length!\n");
+        cur = cur->next;
+        continue;
+      }
+
+      // get section start and end in frame count
+      printf("[buddy init] section addr: [%d, %d]\n", free_section_start, free_section_end);
+      int frame_start = (free_section_start - PAGE_BASE_ADDR) / PAGE_SIZE;
+      int frame_end   = (free_section_end   - PAGE_BASE_ADDR) / PAGE_SIZE;
+      if(frames[frame_start].addr < free_section_start) frame_start++;
+
+      // get section length in frame count
+      int frame_span = frame_end - frame_start;
+      int upper_bound = align_up_exp(frame_span);
+      int free_section_order = log2(upper_bound);
+      if( (1 << free_section_order) > frame_span){
+        printf("[buddy_init] out of bound order: %d > %d\n", (1 << free_section_order), frame_span);
+        free_section_order--; // shrink order if it's over the bound.
+      } 
+
+      printf("[buddy init] find free seciont at frame [%d, %d], len = %d, order = %d\n", 
+              frame_start, frame_end, free_section_len, free_section_order );
+
+      // mark the section allocated.
+      for(int i = frame_start; i<=frame_end; i++) {
+        frames[i].is_allocated = 1;
+      }
+
+      // put the found section in the free_frame_list
+      frames[frame_start].order = free_section_order;
+      frames[frame_start].next = free_frame_lists[free_section_order];
+      free_frame_lists[free_section_order] = &frames[frame_start];
+
+      cur = cur->next;
+
+    }
+    //print_frame_lists();
+    // dma and heap
     free_dma_list = 0;
-    heap_offset = 0; // for simple_malloc
 }
 
 page_frame *buddy_allocate(uint64_t size) {
-  uint64_t page_num = size / PAGE_SIZE; // number of 4kb page needed to create the frame.
+  // number of 4kb page needed to create the frame.
+  uint64_t page_num = size / PAGE_SIZE; 
   if (size % PAGE_SIZE != 0) page_num++; 
-  page_num = align_up_exp(page_num);
-  uint64_t order = log2(page_num);
-  //print_s("allocation size: ");
-  //print_i(size);
-  //print_s("\r\norder: ");
-  //print_i(order);
-  //print_s("\r\n");
+  page_num = align_up_exp(page_num); // find upper 2^n bound, 5 is 2^3
+  uint64_t order = log2(page_num);   
+
   for (uint64_t i = order; i <= MAX_FRAME_ORDER; i++) {
+     
     if (free_frame_lists[i]) {
-      
+      // set frame and remove it from the free list.
       int cur_id = free_frame_lists[i]->id;
       free_frame_lists[i] = free_frame_lists[i]->next;
       frames[cur_id].order = order;
       frames[cur_id].is_allocated = 1;
-      frames[cur_id].next = used_frame_lists[order];
-      used_frame_lists[order] = &frames[cur_id];
+
+      //frames[cur_id].next = used_frame_lists[order];
+      //used_frame_lists[order] = &frames[cur_id];
+
       //print_s("allocate frame index ");
       //print_i(cur_id);
       //print_s(" (4K x 2^");
@@ -132,6 +240,9 @@ page_frame *buddy_allocate(uint64_t size) {
         frames[id].is_allocated = 0;
         frames[id].next = free_frame_lists[i - 1];
         free_frame_lists[i - 1] = &frames[id];
+
+        //printf("[buddy_allocate] put frame index %d at 0x%xback to free list\n", id, frames[id].addr);
+        
         //print_s("put frame index ");
         //print_i(id);
         //print_s(" back to free lists (4K x 2^");
@@ -140,7 +251,7 @@ page_frame *buddy_allocate(uint64_t size) {
         //print_i(1 << (frames[id].order + 2));
         //print_s(" KB)\n");
       }
-      // print_s("\n");
+      printf("[buddy_allocate] size: 0x%d, at addr 0x%x\n", size, frames[cur_id].addr);
       return &frames[cur_id];
     }
   }
@@ -157,7 +268,7 @@ void buddy_free(page_frame *frame) {
   uint64_t order = frames[index].order;
   buddy_unlink(index, 1); // remove from used list since it's freed
   while (order <= MAX_FRAME_ORDER) {
-    // check left right
+    // flip bit to jump and check left right frame
     uint64_t target_index = index ^ (1 << order);
     // check if target_index is merge-ble.
     if ((target_index >= MAX_PAGE_NUM) || frames[target_index].is_allocated ||
@@ -171,6 +282,8 @@ void buddy_free(page_frame *frame) {
     //print_s(" = ");
     //print_i(1 << (frames[target_index].order + 2));
     //print_s(" KB)\n");
+    //printf("[buddy_unlink] merge with frame index: %d\n", target_index);
+
     buddy_unlink(target_index, 0); // remove from free list since it's merged
     order += 1;
     // the index need to point to the head of that memory frame.
@@ -194,10 +307,11 @@ void buddy_unlink(int index, int type) {
   frames[index].order = -1;
   print_s(""); // I don't know why you need this print
   frames[index].is_allocated = 0;
-
+  //printf("[buddy_unlink] order = %d", order);
   if (type == 0) {
     if (free_frame_lists[order] == &frames[index]) {
       // move out of free frame list since it's been merged.
+      // printf("[unlink] type 0 idx = %d\n", index);
       free_frame_lists[order] = frames[index].next;
       frames[index].next = 0;
     } else {
@@ -217,6 +331,7 @@ void buddy_unlink(int index, int type) {
     } else {
       for (page_frame *cur = used_frame_lists[order]; cur; cur = cur->next) {
         if (cur->next == &frames[index]) {
+          printf("[unlink] idx = %d\n", index);
           cur->next = frames[index].next;
           frames[index].next = 0;
           break;

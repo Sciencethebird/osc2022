@@ -7,13 +7,25 @@
 #define HEAP_START 0x30000000
 size_t heap_offset;
 
-#define PAGE_BASE_ADDR ((uint64_t)(0x10000000))
-#define PAGE_END_ADDR ((uint64_t)(0x20000000))
+#define PAGE_BASE_ADDR ((uint64_t)(0x00000000))
+#define PAGE_END_ADDR ((uint64_t)(0x3C000000))
+
 #define PAGE_SIZE ((uint64_t)(4 * kb))
 #define MAX_PAGE_NUM \
   ((uint64_t)((PAGE_END_ADDR - PAGE_BASE_ADDR) / PAGE_SIZE))  // 65536
-#define MAX_FRAME_ORDER 16                                    // 2^16 = 65536
+#define MAX_FRAME_ORDER 18                                    // 2^16 = 65536
 #define FRAME_LIST_NUM (MAX_FRAME_ORDER + 1)
+
+#define RESERVE_START 2
+#define RESERVE_END   3
+#define SPIN_TABLE_START 0x0000
+#define SPIN_TABLE_END   0x1000
+
+typedef struct ReservedSection {
+  int start;
+  int end;
+  struct ReservedSection* next;
+} reserved_section;
 
 typedef struct PageFrame {
   int id;
@@ -31,10 +43,11 @@ typedef struct DMAHeader {
   struct DMAHeader *prev, *next;
 } dma_header;
 
-page_frame frames[MAX_PAGE_NUM];
+page_frame *frames; 
 page_frame *free_frame_lists[FRAME_LIST_NUM], *used_frame_lists[FRAME_LIST_NUM];
 
 dma_header *free_dma_list;
+reserved_section* reserved_section_list;
 
 void buddy_init();
 void buddy_test();
@@ -50,6 +63,10 @@ void print_dma_list();
 
 // simple_malloc
 void* simple_malloc(size_t size);
+void startup_alloc_init();
+
+// memory reserve
+void memory_reserve(int start, int end);
 
 unsigned long __stack_chk_guard;
 void __stack_chk_guard_setup(void);
