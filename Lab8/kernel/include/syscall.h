@@ -24,6 +24,7 @@
 #define SYS_CHDIR 17
 #define SYS_LSEEK64 18
 #define SYS_IOCTL 19
+#define SYS_SYNC 20
 
 #define SYS_LIST 77
 #define SYS_UMOUNT 88
@@ -53,3 +54,4 @@ void sys_umount(trap_frame_t *trap_frame);
 
 void sys_ioctl(trap_frame_t *trap_frame);
 void sys_lseek64(trap_frame_t *trap_frame);
+void sys_sync(trap_frame_t *trap_frame);

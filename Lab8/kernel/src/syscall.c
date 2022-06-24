@@ -15,6 +15,7 @@
 #include "syscall.h"
 #include "vfs.h"
 
+
 void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
   switch (syscall_number) {
 
@@ -85,6 +86,9 @@ void syscall_handler(uint32_t syscall_number, trap_frame_t *trap_frame) {
     case SYS_IOCTL:
       //printf("[syscall] ioctl\n");
       sys_ioctl(trap_frame);
+      break;
+    case SYS_SYNC:
+      sys_sync(trap_frame);
       break;
     /*
     case SYS_UMOUNT:
@@ -265,4 +269,8 @@ void sys_ioctl(trap_frame_t *trap_frame) {
     printf("[sys_ioctl] req %d is not implemented.\n", req);
     trap_frame->x[0] = -1;
   }
+}
+
+void sys_sync(trap_frame_t *trap_frame) {
+  vfs_sync();
 }

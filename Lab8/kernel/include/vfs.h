@@ -81,3 +81,4 @@ int vfs_mount(const char* device, const char* mountpoint,
 int vfs_umount(const char* mountpoint);
 
 void vfs_list(const char* pathname);
+void vfs_sync();

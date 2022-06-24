@@ -12,6 +12,10 @@
 #define FATFS_BUF_SIZE (10 * kb)
 #define TABLE_TERMINATE 0xfffffff
 
+#define IS_SYNCED  0
+#define WAIT_READ  1
+#define WAIT_WRITE 2
+
 struct mbr_partition_entry {
   unsigned char status_flag;              // 0x0
   unsigned char partition_begin_head;     // 0x1
@@ -92,6 +96,7 @@ struct fatfs_fentry {
   char name[20];
   int name_len;  // test1.txt -> 5 (before .)
   int starting_cluster;
+  int is_synced;
   FILE_TYPE type;
   struct vnode* vnode;
   struct vnode* parent_vnode;
@@ -103,6 +108,7 @@ struct fat_table {
   unsigned int entry[1];
 };
 
+struct fatfs_fentry* root_dir_fentry;
 struct fatfs_boot_sector* fat_boot_sector;
 struct fatfs_dentry* fat_root_dentry;
 int fat_starting_sector;
@@ -123,7 +129,7 @@ static int free_cluster_sector;
 void fatfs_init();
 void fatfs_set_directory(struct fatfs_fentry* fentry,
                          struct fatfs_dentry* dentry);
-void fatfs_set_fentry(struct fatfs_fentry* fentry, FILE_TYPE type,
+void fatfs_set_fentry(struct fatfs_fentry* fentry, FILE_TYPE type, int is_sync,
                       struct vnode* vnode, int starting_cluster, int buf_size);
 int fatfs_setup_mount(struct filesystem* fs, struct mount* mount);
 int fatfs_lookup(struct vnode* dir_node, struct vnode** target,
@@ -139,3 +145,5 @@ void print_fat_table(int table_index);
 int find_free_fat_table_entry();
 int set_free_fat_table_entry(int entry_index, int value);
 int get_fat_table_entry(int entry_index);
+
+void fatfs_sync();

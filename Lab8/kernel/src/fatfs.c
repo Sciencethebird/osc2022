@@ -76,8 +76,8 @@ void fatfs_set_directory(struct fatfs_fentry* fentry,
       //for(int i = 0; i< BLOCK_SIZE; i++){
       //  printf("%c", temp[i]);
       //} printf("\n");
-      fatfs_set_fentry(fentry->child[i], FILE_REGULAR, vnode, starting_cluster,
-                       buf_size);
+      fatfs_set_fentry(fentry->child[i], FILE_REGULAR, WAIT_READ /* read from sd so it's synced */, 
+                      vnode, starting_cluster, buf_size);
       // a large file?????
       // is cluster fully used a sector???
       // test: a big file memory print test.
@@ -86,13 +86,14 @@ void fatfs_set_directory(struct fatfs_fentry* fentry,
   }
 }
 
-void fatfs_set_fentry(struct fatfs_fentry* fentry, FILE_TYPE type,
+void fatfs_set_fentry(struct fatfs_fentry* fentry, FILE_TYPE type, int is_synced,
                       struct vnode* vnode, int starting_cluster, int buf_size) {
   fentry->starting_cluster = starting_cluster;
   fentry->vnode = vnode;
   fentry->type = type;
   fentry->buf = (struct fatfs_buf*)malloc(sizeof(struct fatfs_buf));
   fentry->buf->size = buf_size;
+  fentry->is_synced = is_synced;
   for (int i = 0; i < FATFS_BUF_SIZE; i++) {
     fentry->buf->buffer[i] = '\0';
   }
@@ -104,6 +105,7 @@ void fatfs_set_fentry(struct fatfs_fentry* fentry, FILE_TYPE type,
       fentry->child[i]->name[0] = 0;
       fentry->child[i]->type = FILE_NONE;
       fentry->child[i]->parent_vnode = vnode;
+      fentry->child[i]->is_synced = 0;
     }
   }
 }
@@ -188,8 +190,9 @@ int fatfs_setup_mount(struct filesystem* fs, struct mount* mount) {
   vnode->internal = (void*)root_fentry;
   root_fentry->parent_vnode = 0;
 
-  fatfs_set_fentry(root_fentry, FILE_DIRECTORY, vnode,
-                   fat_boot_sector->root_cluster, 4096);
+  root_dir_fentry = root_fentry;
+  fatfs_set_fentry(root_fentry, FILE_DIRECTORY, IS_SYNCED /*does not matter*/,
+                  vnode, fat_boot_sector->root_cluster, 4096);
   fatfs_set_directory(root_fentry, fat_root_dentry);
 
   mount->fs = fs;
@@ -260,36 +263,36 @@ int fatfs_write(struct file* file, const void* buf, size_t len) {
       printf("\n[fatfs_write]new file size: %d\n", (fat_root_dentry + i)->file_size);
     }
   }
+  fentry->is_synced = WAIT_WRITE;
   // update root dir table in the sd card
-  writeblock(root_starting_sector, (char*)fat_root_dentry);
+  // writeblock(root_starting_sector, (char*)fat_root_dentry);
 
-
-  // write buffer to the sd card
-  int data_sector = fentry->starting_cluster;
-  printf("\n[fatfs_write] starting sector :0x%x\n", data_sector);
-  //writeblock(starting_sector, fentry->buf->buffer);
-  
-  for (size_t i = 0; i < fentry->buf->size; i+=512) {
-    //printf("\n\n\n[fatfs_write] writing %d th block into 0x%x\n", i, data_sector);
-    //printf("==================write content ===================\n");
-    //for(int j = 0; j<512; j++){
-    //  printf("%c", fentry->buf->buffer[j]);
-    //}
-    //printf("\n=================================================\n");
-    writeblock(get_starting_sector(data_sector), fentry->buf->buffer + i );
-    
-    //char temp[512];
-    //readblock(get_starting_sector(data_sector), temp);
-    //printf("=============== after write content ===================\n");
-    //for(int j = 0; j<512; j++){
-    //  printf("%c", temp[j]);
-    //}
-    //printf("\n=================================================\n");
-    int new_entry = find_free_fat_table_entry();
-    set_free_fat_table_entry(data_sector, new_entry);
-    data_sector = new_entry;
-  }
-  set_free_fat_table_entry(data_sector, TABLE_TERMINATE);
+  //// write buffer to the sd card
+  //int data_sector = fentry->starting_cluster;
+  //printf("\n[fatfs_write] starting sector :0x%x\n", data_sector);
+  ////writeblock(starting_sector, fentry->buf->buffer);
+  //
+  //for (size_t i = 0; i < fentry->buf->size; i+=512) {
+  //  //printf("\n\n\n[fatfs_write] writing %d th block into 0x%x\n", i, data_sector);
+  //  //printf("==================write content ===================\n");
+  //  //for(int j = 0; j<512; j++){
+  //  //  printf("%c", fentry->buf->buffer[j]);
+  //  //}
+  //  //printf("\n=================================================\n");
+  //  writeblock(get_starting_sector(data_sector), fentry->buf->buffer + i );
+  //  
+  //  //char temp[512];
+  //  //readblock(get_starting_sector(data_sector), temp);
+  //  //printf("=============== after write content ===================\n");
+  //  //for(int j = 0; j<512; j++){
+  //  //  printf("%c", temp[j]);
+  //  //}
+  //  //printf("\n=================================================\n");
+  //  int new_entry = find_free_fat_table_entry();
+  //  set_free_fat_table_entry(data_sector, new_entry);
+  //  data_sector = new_entry;
+  //}
+  //set_free_fat_table_entry(data_sector, TABLE_TERMINATE);
 
   
 
@@ -299,30 +302,38 @@ int fatfs_write(struct file* file, const void* buf, size_t len) {
 int fatfs_read(struct file* file, void* buf, size_t len) {
   size_t read_len = 0;
   struct fatfs_fentry* fentry = (struct fatfs_fentry*)file->vnode->internal;
-  int data_sector = fentry->starting_cluster;
-  printf("\n[fatfs_read] starting sector :0x%x\n", data_sector);
-  printf("[buffer size] size: %d\n", fentry->buf->size);
-  for(int i = 0; ; i++) {
+  if(fentry->is_synced == WAIT_READ) {
     
+    int data_sector = fentry->starting_cluster;
 
-    readblock( get_starting_sector(data_sector), fentry->buf->buffer + i*512 );
+    printf("\n[fatfs_read] starting sector :0x%x\n", data_sector);
+    printf("[buffer size] size: %d\n", fentry->buf->size);
+    for(int i = 0; ; i++) {
 
-    //char temp[512];
-    //readblock(get_starting_sector(data_sector), temp);
-    // printf("=============== after read content ===================\n");
-    // for(int j = 0; j<512; j++){
-    //   printf("%c", fentry->buf->buffer[i*512+j]);
-    // }
-    // printf("\n=================================================\n");
 
-    printf("current sector: %x", data_sector);
-    data_sector = get_fat_table_entry(data_sector);
-    printf(" ,next sector: %x\n", data_sector);
-    if( (data_sector == TABLE_TERMINATE) || (data_sector == 0)) break;
+      readblock( get_starting_sector(data_sector), fentry->buf->buffer + i*512 );
+
+      //char temp[512];
+      //readblock(get_starting_sector(data_sector), temp);
+      // printf("=============== after read content ===================\n");
+      // for(int j = 0; j<512; j++){
+      //   printf("%c", fentry->buf->buffer[i*512+j]);
+      // }
+      // printf("\n=================================================\n");
+
+      printf("current sector: %x", data_sector);
+      data_sector = get_fat_table_entry(data_sector);
+      printf(" ,next sector: %x\n", data_sector);
+      if( (data_sector == TABLE_TERMINATE) || (data_sector == 0)) break;
+    }
+    fentry->is_synced = IS_SYNCED;
+  } else {
+    printf("[fatfs_read] data already synced! reading the buffer on the memory\n");
   }
   
-  //readblock(starting_sector, fentry->buf->buffer);
+  // readblock(starting_sector, fentry->buf->buffer);
   // printf("[read pos]: %d\n", file->f_pos);
+
   for (size_t i = 0; i < len; i++) {
     ((char*)buf)[i] = fentry->buf->buffer[file->f_pos++];
     read_len++;
@@ -354,10 +365,12 @@ int fatfs_create(struct vnode* dir_node, struct vnode** target,
       int flag = 0;
       printf("[fatfs_create] i: %d, filename: %s\n", i, (dentry + i)->filename);
       for (int j = 0; j < 8; j++) {
+
         // printf("0x%x ", (dentry + i)->filename[j]);
         // printf("0x%x ", (dentry + i)->filename[j]);
         // printf("%3d", (dentry + i)->filename[j]);
         // handle weird file
+
         if ((dentry + i)->filename[j] == 0 ) {
           flag = 1;
         }
@@ -410,10 +423,12 @@ int fatfs_create(struct vnode* dir_node, struct vnode** target,
 
         printf("\n\n\n[create] %s\n", (char*)(fat_root_dentry + i)->filename);
         // update root directory table with new directory table
-        writeblock(root_starting_sector, (char*)fat_root_dentry);
+
+        //writeblock(root_starting_sector, (char*)fat_root_dentry);
         
         // data cluster number == location of new_table_entry
-        fatfs_set_fentry(fentry, FILE_REGULAR, vnode, new_table_entry, 1);
+        fatfs_set_fentry(fentry, FILE_REGULAR, WAIT_WRITE,
+                          vnode, new_table_entry, 1);
 
         *target = fentry->vnode;
 
@@ -466,4 +481,37 @@ int get_fat_table_entry(int entry_index) {
   int in_sector_index = entry_index % 128;
   readblock(sector_index + fat_table_starting_sector, fat_table);
   return ((int*)fat_table)[in_sector_index];
+}
+
+void fatfs_sync() {
+  printf("[fatfs_sync]\n");
+
+  // update root dir table
+  writeblock(root_starting_sector, (char*)fat_root_dentry);
+
+  for (int i = 0; i < MAX_FILES_IN_DIR; ++i) {
+      struct fatfs_fentry* child = root_dir_fentry->child[i];
+      if(child->name[0] != 0) {
+        if(child->is_synced == WAIT_WRITE) {
+          printf("[fatfs_sync] WAIT_WRITE sync: writing a file to sd card: %s\n", child->name);
+
+          // write buffer to the sd card
+          int data_sector = child->starting_cluster;
+          printf("\n[fatfs_write] starting sector :0x%x\n", data_sector);
+          //writeblock(starting_sector, fentry->buf->buffer);
+          printf("\n[fatfs_write] buff size: %d\n", child->buf->size);
+          for (size_t i = 0; i < child->buf->size; i+=512) {
+          
+            writeblock(get_starting_sector(data_sector), child->buf->buffer + i );
+      
+            int new_entry = find_free_fat_table_entry();
+            set_free_fat_table_entry(data_sector, new_entry);
+            data_sector = new_entry;
+          }
+          set_free_fat_table_entry(data_sector, TABLE_TERMINATE);
+          child->is_synced = IS_SYNCED;
+
+        } 
+      }
+  }
 }

@@ -13,6 +13,7 @@
 #include "dtb.h"
 #include "printf.h"
 #include "vfs.h"
+#include "fatfs.h"
 
 commads cmd_list[]=
 {
@@ -38,7 +39,8 @@ commads cmd_list[]=
     {.cmd="ls", .help="list directory (vfs)", .func=shell_ls},
     {.cmd="cd", .help="change directory (vfs)", .func=shell_chdir},
     {.cmd="cat", .help="echo file content", .func=shell_cat},
-    {.cmd="test", .help="test your command here", .func=shell_test}
+    {.cmd="test", .help="test your command here", .func=shell_test},
+    {.cmd="sync", .help="sync file system", .func=shell_sync}
 };
 
 int cmd_num = sizeof(cmd_list)/sizeof(commads);
@@ -339,4 +341,8 @@ void shell_cat(char* args){
         }
         printf("\n");
     }
+}
+
+void shell_sync(char* args){
+    fatfs_sync();
 }

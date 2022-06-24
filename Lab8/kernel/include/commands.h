@@ -29,6 +29,7 @@ void shell_vfs_test(char* args);
 void shell_ls(char* args);
 void shell_chdir(char* args);
 void shell_cat(char* args);
+void shell_sync(char* args);
 
 extern commads cmd_list[];
 extern int cmd_num;

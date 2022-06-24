@@ -354,3 +354,7 @@ int vfs_umount(const char* mountpoint) {
   target->mount = 0;
   return 1;
 }
+
+void vfs_sync() {
+  fatfs_sync();
+}
