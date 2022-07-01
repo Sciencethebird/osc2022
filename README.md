@@ -34,13 +34,13 @@
 - [x] `advanced 2`
 - [x] `advanced 3`
 
-## Lab 5: Thread and User Process
+## Lab 5: [THREAD] Thread and User Process
 - [x] `basic 1`
 - [x] `basic 2`
 - [x] `basic 3`
 - [ ] `advanced 1`
 
-## Lab 6 : Virtual Memory
+## Lab 6 : [VM] Virtual Memory
 - [x] `basic 1`
 - [x] `basic 2`
 - [x] `basic 3`
@@ -48,7 +48,7 @@
 - [ ] `advanced 2`
 - [ ] `advanced 3`
 
-## Lab 7 : Virtual File System
+## Lab 7 : [VFS] Virtual File System
 - [x] `basic 1`
 - [x] `basic 2`
 - [x] `basic 3`
@@ -56,7 +56,7 @@
 - [x] `advanced 1`
 - [x] `advanced 2`
 
-## Lab 8 : Non-volatile Storage
+## Lab 8 : [FAT] Non-volatile Storage
 - [x] `basic 1`
 - [x] `basic 2`
 - [x] `advanced 1`
