@@ -27,7 +27,7 @@
 - [ ] `advanced 1`
 - [ ] `advanced 2`
 
-## Lab 4: Allocator
+## Lab 4: [ALLOC] Allocator
 - [x] `basic 1`
 - [x] `basic 2`
 - [x] `advanced 1`
